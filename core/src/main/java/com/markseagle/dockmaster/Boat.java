@@ -12,6 +12,7 @@ public class Boat {
     public Vector2 velocity = new Vector2();
     public float damage = 0;
     public boolean active = true;
+    public long boatValue = 10000;
 
     private final float THRUST = 240f;
     private final float REVERSE_THRUST = 120f;
@@ -24,10 +25,10 @@ public class Boat {
     private final float length = 40;
     private final float width = 20;
 
-    public Boat(float x, float y) {
+    public Boat(float x, float y, float startAngle) {
         this.x = x;
         this.y = y;
-        this.angle = 90;
+        this.angle = startAngle;
 
         float[] vertices = new float[] {
             -length/2, -width/2,
@@ -91,17 +92,20 @@ public class Boat {
     }
 
     public void handleCollision(float impactSpeed) {
-        // Damage based on speed. Minimal damage for slow bumps.
         if (impactSpeed > 20f) {
-            float dmg = (impactSpeed - 20f) * 0.2f;
+            float dmg = (impactSpeed - 20f) * 0.25f;
             damage = Math.min(100, damage + dmg);
             if (damage >= 100) {
                 active = false;
                 velocity.set(0, 0);
             }
         }
-        // Bounce back slightly
-        velocity.scl(-0.5f);
+        velocity.scl(-0.6f);
+    }
+
+    public void applyValueLoss() {
+        boatValue -= (long)(damage * 10);
+        if (boatValue < 0) boatValue = 0;
     }
 
     public void draw(ShapeRenderer shape) {
@@ -111,9 +115,7 @@ public class Boat {
         shape.getTransformMatrix().idt().translate(x, y, 0).rotate(0, 0, 1, angle);
         shape.updateMatrices();
 
-        // Hull
         shape.rect(-length / 2, -width / 2, length * 0.7f, width);
-        // Bow
         shape.triangle(
             length * 0.2f, -width / 2,
             length * 0.2f, width / 2,
@@ -125,10 +127,10 @@ public class Boat {
         shape.updateMatrices();
     }
 
-    public void reset(float x, float y) {
+    public void reset(float x, float y, float angle) {
         this.x = x;
         this.y = y;
-        this.angle = 90;
+        this.angle = angle;
         this.velocity.set(0, 0);
         this.damage = 0;
         this.active = true;
