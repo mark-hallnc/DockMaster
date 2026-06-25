@@ -17,6 +17,7 @@ public class Boat {
     public long boatValue;
 
     public Polygon bounds;
+    private float flashTimer = 0;
 
     public Boat(float x, float y, float startAngle, BoatDefinition profile) {
         this.profile = profile;
@@ -43,6 +44,7 @@ public class Boat {
 
     public void update(float delta, InputController input, LevelDefinition level) {
         if (!active) return;
+        if (flashTimer > 0) flashTimer -= delta;
 
         Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
         float forwardVelocityMag = velocity.dot(forwardDir);
@@ -105,16 +107,19 @@ public class Boat {
         bounds.setRotation(angle);
     }
 
-    public void handleCollision(float impactSpeed) {
+    public float handleCollision(float impactSpeed) {
+        float dmg = 0;
         if (impactSpeed > 15f) {
-            float dmg = (impactSpeed - 15f) * 0.2f;
+            dmg = (impactSpeed - 15f) * 0.2f;
             damage = Math.min(100, damage + dmg);
             if (damage >= 100) {
                 active = false;
                 velocity.set(0, 0);
             }
+            flashTimer = 0.2f;
         }
         velocity.scl(-0.4f);
+        return dmg;
     }
 
     public void applyValueLoss() {
@@ -124,7 +129,11 @@ public class Boat {
     }
 
     public void draw(ShapeRenderer shape) {
-        shape.setColor(damage >= 100 ? Color.GRAY : profile.color);
+        Color boatColor = damage >= 100 ? Color.GRAY : profile.color;
+        if (flashTimer > 0) {
+            boatColor = Color.RED;
+        }
+        shape.setColor(boatColor);
         shape.flush();
         shape.getTransformMatrix().idt().translate(x, y, 0).rotate(0, 0, 1, angle);
         shape.updateMatrices();

@@ -44,6 +44,12 @@ public class DockMasterGame extends ApplicationAdapter {
     private int bestStarsBefore = 0;
     private int starBonus = 0;
 
+    // Polish effects
+    private WakeTrail wakeTrail;
+    private FloatingText floatingText;
+    private float introTimer = 0;
+    private float shakeTimer = 0;
+
     private static final float WORLD_WIDTH = 800;
     private static final float WORLD_HEIGHT = 600;
     private static final float HUD_WIDTH = 800;
@@ -70,6 +76,8 @@ public class DockMasterGame extends ApplicationAdapter {
         boatCatalog = new BoatCatalog();
 
         dock = new Dock();
+        wakeTrail = new WakeTrail();
+        floatingText = new FloatingText();
     }
 
     private void loadLevel(int index) {
@@ -101,6 +109,10 @@ public class DockMasterGame extends ApplicationAdapter {
         levelTimer = 0;
         currentStars = 0;
         starBonus = 0;
+        introTimer = 3.0f;
+        shakeTimer = 0;
+        wakeTrail.clear();
+        floatingText.clear();
         state = GameState.PLAYING;
 
         worldCamera.position.set(boat.x, boat.y, 0);
@@ -112,16 +124,25 @@ public class DockMasterGame extends ApplicationAdapter {
         float delta = Gdx.graphics.getDeltaTime();
 
         inputController.update(hudViewport, state);
-
         handleTransitions();
 
         if (state == GameState.PLAYING) {
             levelTimer += delta;
+            if (introTimer > 0) introTimer -= delta;
+            if (shakeTimer > 0) shakeTimer -= delta;
+
             boat.update(delta, inputController, levelManager.getCurrentLevel());
             dock.update(boat, delta);
+            wakeTrail.update(delta, boat.x, boat.y, boat.velocity.len());
+            floatingText.update(delta);
 
             if (dock.checkCollision(boat)) {
-                boat.handleCollision(boat.velocity.len());
+                float impact = boat.velocity.len();
+                float dmg = boat.handleCollision(impact);
+                if (dmg > 0) {
+                    floatingText.spawn("-" + (int)dmg + "%", boat.x, boat.y + 20, Color.RED);
+                    shakeTimer = 0.2f;
+                }
             }
 
             if (!boat.active) {
@@ -132,16 +153,11 @@ public class DockMasterGame extends ApplicationAdapter {
                 state = GameState.DOCKED;
                 bestStarsBefore = progressManager.getBestStars(levelManager.getCurrentLevelIndex());
                 calculateResults();
-
-                if (currentStars >= 1) {
-                    progressManager.unlockNextLevel(levelManager.getCurrentLevelIndex());
-                }
-
+                if (currentStars >= 1) progressManager.unlockNextLevel(levelManager.getCurrentLevelIndex());
                 if (currentStars > bestStarsBefore) {
                     starBonus = (currentStars - bestStarsBefore) * 200;
                     progressManager.setBestStars(levelManager.getCurrentLevelIndex(), currentStars);
                 }
-
                 progressManager.addCash(currentPayout + starBonus);
                 saveBoatState();
             }
@@ -153,7 +169,6 @@ public class DockMasterGame extends ApplicationAdapter {
         if (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED) {
             renderWorld();
         }
-
         renderHud();
     }
 
@@ -167,18 +182,11 @@ public class DockMasterGame extends ApplicationAdapter {
         if (inputController.startPressed) {
             if (state == GameState.TITLE) loadLevel(levelManager.getCurrentLevelIndex());
         }
-        if (inputController.levelSelectPressed) {
-            state = GameState.LEVEL_SELECT;
-        }
-        if (inputController.boatSelectPressed) {
-            state = GameState.BOAT_SELECT;
-        }
-        if (inputController.garagePressed) {
-            state = GameState.GARAGE;
-        }
-        if (inputController.titlePressed) {
-            state = GameState.TITLE;
-        }
+        if (inputController.levelSelectPressed) state = GameState.LEVEL_SELECT;
+        if (inputController.boatSelectPressed) state = GameState.BOAT_SELECT;
+        if (inputController.garagePressed) state = GameState.GARAGE;
+        if (inputController.titlePressed) state = GameState.TITLE;
+
         if (inputController.retryPressed && (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED)) {
             loadLevel(levelManager.getCurrentLevelIndex());
         }
@@ -198,23 +206,18 @@ public class DockMasterGame extends ApplicationAdapter {
         if (state == GameState.BOAT_SELECT && inputController.selectedBoatIndex != -1) {
             if (inputController.selectedBoatIndex < boatCatalog.getBoats().size()) {
                 BoatDefinition b = boatCatalog.getBoats().get(inputController.selectedBoatIndex);
-                if (!b.displayName.contains("Soon")) {
-                    progressManager.setSelectedBoatId(b.id);
-                }
+                if (!b.displayName.contains("Soon")) progressManager.setSelectedBoatId(b.id);
             }
         }
-        if (state == GameState.GARAGE && inputController.repairPressed) {
-            performRepair();
-        }
+        if (state == GameState.GARAGE && inputController.repairPressed) performRepair();
     }
 
     private void performRepair() {
         BoatDefinition profile = boatCatalog.getBoatById(progressManager.getSelectedBoatId());
         float damage = progressManager.getBoatDamage(profile.id);
         int cost = (int)(damage * 20);
-
-        if (damage <= 0) {
-        } else if (progressManager.getPlayerCash() >= cost) {
+        if (damage <= 0) return;
+        if (progressManager.getPlayerCash() >= cost) {
             progressManager.spendCash(cost);
             progressManager.setBoatDamage(profile.id, 0);
             progressManager.setBoatValue(profile.id, profile.value);
@@ -233,6 +236,16 @@ public class DockMasterGame extends ApplicationAdapter {
 
     private void renderWorld() {
         worldViewport.apply();
+
+        // Screen Shake
+        float sx = 0, sy = 0;
+        if (shakeTimer > 0) {
+            sx = (float)(Math.random() - 0.5f) * 15f;
+            sy = (float)(Math.random() - 0.5f) * 15f;
+        }
+        worldCamera.position.add(sx, sy, 0);
+        worldCamera.update();
+
         shapeRenderer.setProjectionMatrix(worldCamera.combined);
         batch.setProjectionMatrix(worldCamera.combined);
 
@@ -240,12 +253,35 @@ public class DockMasterGame extends ApplicationAdapter {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        drawWaterDetails(shapeRenderer);
         dock.draw(shapeRenderer);
         drawEnvironmentalIndicators(shapeRenderer, levelManager.getCurrentLevel());
+        wakeTrail.draw(shapeRenderer);
         boat.draw(shapeRenderer);
         shapeRenderer.end();
 
+        batch.begin();
+        floatingText.draw(batch, font);
+        batch.end();
+
         Gdx.gl.glDisable(GL20.GL_BLEND);
+
+        // Reset camera pos after shake
+        worldCamera.position.sub(sx, sy, 0);
+        worldCamera.update();
+    }
+
+    private void drawWaterDetails(ShapeRenderer shape) {
+        shape.setColor(1, 1, 1, 0.05f);
+        // Simple buoys
+        shape.circle(100, 100, 8);
+        shape.circle(700, 500, 8);
+        shape.circle(400, 300, 8);
+
+        // Marina pilings/markers
+        shape.setColor(0.2f, 0.2f, 0.2f, 0.5f);
+        shape.rect(50, 50, 10, 10);
+        shape.rect(740, 50, 10, 10);
     }
 
     private void renderHud() {
@@ -256,42 +292,73 @@ public class DockMasterGame extends ApplicationAdapter {
         Gdx.gl.glEnable(GL20.GL_BLEND);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         inputController.drawShapes(shapeRenderer, state, progressManager.getSelectedBoatId(), boatCatalog);
-
-        if (state == GameState.DOCKED || state == GameState.FAILED) {
-            drawResultsBackdrop();
-        }
+        if (state == GameState.DOCKED || state == GameState.FAILED) drawResultsBackdrop();
         shapeRenderer.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
 
         batch.begin();
         inputController.drawLabels(batch, font, state, levelManager, progressManager, boatCatalog);
 
-        if (state == GameState.TITLE) {
-            drawTitleScreen();
-        } else if (state == GameState.LEVEL_SELECT) {
-            drawLevelSelectScreen();
-        } else if (state == GameState.BOAT_SELECT) {
-            drawBoatSelectScreen();
-        } else if (state == GameState.GARAGE) {
-            drawGarageScreen();
-        } else if (state == GameState.PLAYING) {
+        if (state == GameState.TITLE) drawTitleScreen();
+        else if (state == GameState.LEVEL_SELECT) drawLevelSelectScreen();
+        else if (state == GameState.BOAT_SELECT) drawBoatSelectScreen();
+        else if (state == GameState.GARAGE) drawGarageScreen();
+        else if (state == GameState.PLAYING) {
             drawHUDText();
+            if (introTimer > 0) drawLevelIntro();
+            drawDockingGuidance();
         } else if (state == GameState.DOCKED || state == GameState.FAILED) {
             drawHUDText();
             drawResultsText();
         }
 
-        if (inputController.debugToggled) {
-            drawDebugOverlay();
-        }
+        if (inputController.debugToggled) drawDebugOverlay();
         batch.end();
+    }
+
+    private void drawLevelIntro() {
+        LevelDefinition lvl = levelManager.getCurrentLevel();
+        float alpha = Math.min(1.0f, introTimer);
+        font.setColor(1, 1, 1, alpha);
+        font.draw(batch, "DESTINATION: " + lvl.destinationName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 60);
+        font.draw(batch, "LEVEL: " + lvl.levelName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 35);
+        font.draw(batch, "PAR TIME: " + (int)lvl.parTimeSeconds + "s", HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 10);
+        font.setColor(Color.WHITE);
+    }
+
+    private void drawDockingGuidance() {
+        float speed = boat.velocity.len();
+        if (dock.isInsideSlipZone(boat)) {
+            font.setColor(Color.LIME);
+            font.draw(batch, "STABILIZING: " + (int)(dock.getDockingProgress() * 100) + "%", HUD_WIDTH / 2 - 70, HUD_HEIGHT - 60);
+        } else if (dock.slipZone.contains(boat.x, boat.y)) {
+            if (speed >= 30f) {
+                font.setColor(Color.ORANGE);
+                font.draw(batch, "TOO FAST! SLOW DOWN", HUD_WIDTH / 2 - 90, HUD_HEIGHT - 60);
+            } else {
+                font.setColor(Color.YELLOW);
+                font.draw(batch, "LINE UP BOAT ANGLE", HUD_WIDTH / 2 - 90, HUD_HEIGHT - 60);
+            }
+        }
+
+        // General proximity warning
+        if (speed > 150f) {
+            boolean near = false;
+            for (com.badlogic.gdx.math.Polygon p : dock.collisionPolys) {
+                if (new Vector2(boat.x, boat.y).dst(p.getX() + 50, p.getY() + 50) < 150) near = true;
+            }
+            if (near) {
+                font.setColor(Color.RED);
+                font.draw(batch, "!!! CAUTION: HIGH SPEED !!!", HUD_WIDTH / 2 - 110, 150);
+            }
+        }
+        font.setColor(Color.WHITE);
     }
 
     private void drawTitleScreen() {
         titleFont.setColor(Color.WHITE);
         titleFont.draw(batch, "DockMaster", HUD_WIDTH / 2 - 160, HUD_HEIGHT - 60);
         font.draw(batch, "Boat Docking Challenge", HUD_WIDTH / 2 - 120, HUD_HEIGHT - 110);
-
         font.draw(batch, "Total Cash: $" + progressManager.getPlayerCash(), 20, 100);
         font.draw(batch, "Total Stars: " + progressManager.getTotalStars(levelManager.getLevels().size()), 20, 130);
         font.draw(batch, "Selected Boat: " + boatCatalog.getBoatById(progressManager.getSelectedBoatId()).displayName, 20, 70);
@@ -313,20 +380,15 @@ public class DockMasterGame extends ApplicationAdapter {
         float damage = progressManager.getBoatDamage(profile.id);
         long value = progressManager.getBoatValue(profile.id, profile.value);
         int cost = (int)(damage * 20);
-
         font.setColor(Color.WHITE);
         font.draw(batch, "GARAGE", HUD_WIDTH / 2 - 40, HUD_HEIGHT - 40);
-
         font.draw(batch, "Boat: " + profile.displayName, 100, HUD_HEIGHT - 120);
         font.draw(batch, profile.description, 100, HUD_HEIGHT - 150);
-
         font.setColor(damage > 50 ? Color.RED : (damage > 0 ? Color.YELLOW : Color.GREEN));
         font.draw(batch, "Current Damage: " + (int)damage + "%", 100, HUD_HEIGHT - 200);
         font.draw(batch, "Current Value: $" + value + " / $" + profile.value, 100, HUD_HEIGHT - 230);
-
         font.setColor(Color.WHITE);
         font.draw(batch, "Your Cash: $" + progressManager.getPlayerCash(), 100, HUD_HEIGHT - 280);
-
         if (damage > 0) {
             font.draw(batch, "Repair Cost: $" + cost, 100, HUD_HEIGHT - 310);
             if (progressManager.getPlayerCash() < cost) {
@@ -378,11 +440,8 @@ public class DockMasterGame extends ApplicationAdapter {
         float damageIncurred = boat.damage - levelStartDamage;
         damagePenalty = (int)(damageIncurred * 5);
         timeBonus = (levelTimer < lvl.parTimeSeconds) ? (int)((lvl.parTimeSeconds - levelTimer) * 10) : 0;
-
         if (state == GameState.DOCKED) {
             currentPayout = Math.max(0, lvl.basePayout + timeBonus - damagePenalty);
-
-            // Star calculation
             if (boat.damage <= 10 && levelTimer <= lvl.parTimeSeconds) currentStars = 3;
             else if (boat.damage <= 40) currentStars = 2;
             else currentStars = 1;
@@ -396,42 +455,15 @@ public class DockMasterGame extends ApplicationAdapter {
         LevelDefinition lvl = levelManager.getCurrentLevel();
         font.setColor(Color.WHITE);
         float top = HUD_HEIGHT - 20;
-
         font.draw(batch, "Boat: " + boat.profile.displayName, 20, top);
         font.draw(batch, "Dest: " + lvl.destinationName, 20, top - 20);
-        font.draw(batch, "Level: " + lvl.levelName, 20, top - 40);
-        font.draw(batch, "Cash: $" + progressManager.getPlayerCash(), 20, top - 60);
-        font.draw(batch, "Time: " + (int)levelTimer + "s / Par: " + (int)lvl.parTimeSeconds + "s", 20, top - 80);
-
+        font.draw(batch, "Cash: $" + progressManager.getPlayerCash(), 20, top - 40);
+        font.draw(batch, "Speed: " + (int)boat.velocity.len(), 20, top - 60);
         Color dmgColor = boat.damage > 50 ? Color.RED : (boat.damage > 20 ? Color.YELLOW : Color.WHITE);
         font.setColor(dmgColor);
-        font.draw(batch, "Damage: " + (int)boat.damage + "%", 20, top - 100);
-
+        font.draw(batch, "Damage: " + (int)boat.damage + "%", 20, top - 80);
         font.setColor(Color.WHITE);
-        font.draw(batch, "Throttle: " + boat.getThrottleState(inputController), 20, top - 120);
-        font.draw(batch, "Boat Val: $" + boat.boatValue, 20, top - 140);
-
-        String windInfo = getForceDescription(lvl.windForce);
-        font.draw(batch, "Wind: " + windInfo, 20, top - 160);
-
-        if (state == GameState.PLAYING && dock.getDockingProgress() > 0) {
-            font.setColor(Color.YELLOW);
-            font.draw(batch, "STABILIZING...", HUD_WIDTH / 2 - 50, HUD_HEIGHT - 50);
-        }
-    }
-
-    private String getForceDescription(Vector2 force) {
-        if (force.len() == 0) return "Calm";
-        String dir = "";
-        if (Math.abs(force.x) > Math.abs(force.y)) {
-            dir = force.x > 0 ? "East" : "West";
-        } else {
-            dir = force.y > 0 ? "North" : "South";
-        }
-        String strength = "Light";
-        if (force.len() >= LevelManager.MEDIUM_FORCE) strength = "Medium";
-        if (force.len() >= LevelManager.STRONG_FORCE) strength = "Strong";
-        return dir + " " + strength;
+        font.draw(batch, "Boat Val: $" + boat.boatValue, 20, top - 100);
     }
 
     private void drawResultsBackdrop() {
@@ -445,28 +477,20 @@ public class DockMasterGame extends ApplicationAdapter {
         LevelDefinition lvl = levelManager.getCurrentLevel();
         float centerX = HUD_WIDTH / 2 - 100;
         float centerY = HUD_HEIGHT / 2 + 150;
-
         font.setColor(Color.WHITE);
         if (state == GameState.DOCKED) {
-            font.draw(batch, "SUCCESS! " + inputController.getStarString(currentStars), centerX + 20, centerY + 80);
-            font.draw(batch, "Best Stars: " + inputController.getStarString(progressManager.getBestStars(levelManager.getCurrentLevelIndex())), centerX, centerY + 55);
-            font.draw(batch, "Time: " + (int)levelTimer + "s (Par: " + (int)lvl.parTimeSeconds + "s)", centerX, centerY + 30);
-            font.draw(batch, "Level Damage: " + (int)(boat.damage - levelStartDamage) + "%", centerX, centerY + 5);
-            font.draw(batch, "Base Payout: $" + lvl.basePayout, centerX, centerY - 20);
-            font.draw(batch, "Time Bonus: $" + timeBonus, centerX, centerY - 45);
-            font.draw(batch, "Damage Penalty: -$" + damagePenalty, centerX, centerY - 70);
-            if (starBonus > 0) {
-                font.setColor(Color.YELLOW);
-                font.draw(batch, "Star Improvement Bonus: $" + starBonus, centerX, centerY - 95);
-                font.setColor(Color.WHITE);
-            }
-            font.draw(batch, "------------------", centerX, centerY - 110);
-            font.draw(batch, "Final Payout: $" + (currentPayout + starBonus), centerX, centerY - 135);
-            font.draw(batch, "Total Cash: $" + progressManager.getPlayerCash(), centerX, centerY - 160);
+            font.getData().setScale(1.5f);
+            font.draw(batch, currentStars == 3 ? "CLEAN DOCK!" : "DOCKED!", centerX + 20, centerY + 80);
+            font.getData().setScale(1.2f);
+            font.draw(batch, "Rating: " + inputController.getStarString(currentStars), centerX + 40, centerY + 50);
+            font.draw(batch, "Payout: $" + (currentPayout + starBonus), centerX + 40, centerY + 20);
+            if (starBonus > 0) font.draw(batch, "+ Star Bonus!", centerX + 40, centerY - 5);
+            font.draw(batch, "Total Cash: $" + progressManager.getPlayerCash(), centerX + 40, centerY - 40);
         } else {
+            font.setColor(Color.RED);
             font.draw(batch, "BOAT TOTALED!", centerX + 20, centerY + 80);
-            font.draw(batch, "Damage: 100%", centerX + 40, centerY + 50);
-            font.draw(batch, "Payout: $0", centerX + 50, centerY + 20);
+            font.setColor(Color.WHITE);
+            font.draw(batch, "Repair needed in Garage", centerX + 20, centerY + 50);
         }
     }
 
@@ -474,11 +498,9 @@ public class DockMasterGame extends ApplicationAdapter {
         font.setColor(Color.LIME);
         float x = HUD_WIDTH - 200;
         float y = HUD_HEIGHT - 20;
-        font.draw(batch, "DEBUG (F1 to toggle)", x, y);
+        font.draw(batch, "DEBUG (F1)", x, y);
         font.draw(batch, "Pos: " + (int)boat.x + ", " + (int)boat.y, x, y - 20);
-        font.draw(batch, "Angle: " + (int)boat.angle, x, y - 40);
-        font.draw(batch, "Vel: " + (int)boat.velocity.len(), x, y - 60);
-        font.draw(batch, "Boat: " + boat.profile.id, x, y - 80);
+        font.draw(batch, "Vel: " + (int)boat.velocity.len(), x, y - 40);
     }
 
     @Override

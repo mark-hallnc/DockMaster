@@ -77,28 +77,58 @@ public class Dock {
         return Math.min(1.0f, dockingTimer / DOCKING_TIME_REQUIRED);
     }
 
+    private float glowTimer = 0;
+
     public void draw(ShapeRenderer shape) {
         if (slipZone == null) return;
+        glowTimer += com.badlogic.gdx.Gdx.graphics.getDeltaTime();
 
-        // Draw collision obstacles
+        // Draw collision obstacles (Docks)
         shape.set(ShapeRenderer.ShapeType.Filled);
-        shape.setColor(0.4f, 0.26f, 0.13f, 1f);
         for (Polygon p : collisionPolys) {
-            shape.rect(p.getX(), p.getY(), p.getVertices()[2], p.getVertices()[5]);
+            float x = p.getX();
+            float y = p.getY();
+            float w = p.getVertices()[2];
+            float h = p.getVertices()[5];
+
+            // Dock body (Brown)
+            shape.setColor(0.35f, 0.22f, 0.1f, 1f);
+            shape.rect(x, y, w, h);
+
+            // Add "plank" lines for detail
+            shape.setColor(0.25f, 0.15f, 0.05f, 1f);
+            if (w > h) {
+                for (float lx = x + 10; lx < x + w; lx += 20) {
+                    shape.rect(lx, y, 2, h);
+                }
+            } else {
+                for (float ly = y + 10; ly < y + h; ly += 20) {
+                    shape.rect(x, ly, w, 2);
+                }
+            }
+
+            // Edge highlights (Pilings/Concrete)
+            shape.setColor(0.5f, 0.5f, 0.5f, 1f);
+            shape.rect(x-2, y-2, w+4, 4); // Bottom
+            shape.rect(x-2, y+h-2, w+4, 4); // Top
+            shape.rect(x-2, y-2, 4, h+4); // Left
+            shape.rect(x+w-2, y-2, 4, h+4); // Right
         }
 
         // Slip zone
         if (successfullyDocked) {
-            shape.setColor(0f, 1f, 0f, 0.5f);
+            shape.setColor(0f, 1f, 0f, 0.6f);
         } else {
-            shape.setColor(1f, 1f, 0f, 0.3f);
+            // Pulsing glow if boat is inside or just near
+            float pulse = (float)(Math.sin(glowTimer * 5f) + 1.0f) * 0.2f;
+            shape.setColor(1f, 1f, 0.2f, 0.2f + pulse);
         }
         shape.rect(slipZone.x, slipZone.y, slipZone.width, slipZone.height);
 
         // Progress bar
         if (dockingTimer > 0 && !successfullyDocked) {
             shape.setColor(Color.WHITE);
-            shape.rect(slipZone.x, slipZone.y - 10, slipZone.width * getDockingProgress(), 5);
+            shape.rect(slipZone.x, slipZone.y - 15, slipZone.width * getDockingProgress(), 8);
         }
     }
 
