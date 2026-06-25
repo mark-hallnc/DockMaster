@@ -135,7 +135,7 @@ public class Boat {
         if (flashTimer > 0) {
             boatColor = Color.RED;
         }
-        shape.setColor(boatColor);
+
         shape.flush();
         shape.getTransformMatrix().idt().translate(x, y, 0).rotate(0, 0, 1, angle);
         shape.updateMatrices();
@@ -143,12 +143,28 @@ public class Boat {
         float l = profile.length;
         float w = profile.width;
 
+        // 1. Hull Shadow/Outline (slightly larger)
+        shape.setColor(0, 0, 0, 0.3f);
+        shape.rect(-l / 2 - 2, -w / 2 - 2, l * 0.7f + 4, w + 4);
+        shape.triangle(l * 0.2f - 2, -w / 2 - 2, l * 0.2f - 2, w / 2 + 2, l / 2 + 12, 0);
+
+        // 2. Main Hull
+        shape.setColor(boatColor);
         shape.rect(-l / 2, -w / 2, l * 0.7f, w);
-        shape.triangle(
-            l * 0.2f, -w / 2,
-            l * 0.2f, w / 2,
-            l / 2 + 10, 0
-        );
+        shape.triangle(l * 0.2f, -w / 2, l * 0.2f, w / 2, l / 2 + 10, 0);
+
+        // 3. Deck/Cabin Details
+        shape.setColor(0.9f, 0.9f, 0.9f, 1f); // Off-white deck
+        shape.rect(-l * 0.3f, -w * 0.3f, l * 0.4f, w * 0.6f);
+
+        // Window/Windshield
+        shape.setColor(0.2f, 0.2f, 0.2f, 0.8f);
+        shape.rect(0, -w * 0.3f, 4, w * 0.6f);
+
+        // Stern details
+        shape.setColor(0.3f, 0.3f, 0.3f, 1f);
+        shape.rect(-l/2, -w/4, 4, w/2);
+
         shape.flush();
         shape.getTransformMatrix().idt();
         shape.updateMatrices();

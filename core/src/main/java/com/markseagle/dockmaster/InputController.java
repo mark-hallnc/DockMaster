@@ -254,15 +254,23 @@ public class InputController {
                 Rectangle r = levelButtons.get(i);
                 LevelDefinition lvl = levels.get(i);
                 boolean unlocked = i <= pm.getUnlockedLevel();
+
+                // Card Details
                 font.setColor(unlocked ? Color.WHITE : Color.GRAY);
-                font.draw(batch, (i+1) + ". " + lvl.levelName, r.x + 10, r.y + 80);
-                font.draw(batch, lvl.destinationName, r.x + 10, r.y + 50);
+                font.draw(batch, (i+1) + ". " + lvl.levelName, r.x + 15, r.y + 85);
+                font.getData().setScale(0.8f);
+                font.draw(batch, lvl.destinationName, r.x + 15, r.y + 60);
+                font.draw(batch, "Payout: $" + lvl.basePayout, r.x + 15, r.y + 40);
 
                 int stars = pm.getBestStars(i);
-                String starStr = getStarString(stars);
-                font.draw(batch, starStr, r.x + 200, r.y + 80);
+                font.setColor(Color.YELLOW);
+                font.draw(batch, getStarString(stars), r.x + 200, r.y + 40);
 
-                if (!unlocked) font.draw(batch, "LOCKED", r.x + 10, r.y + 20);
+                if (!unlocked) {
+                    font.setColor(Color.RED);
+                    font.draw(batch, "LOCKED", r.x + 200, r.y + 85);
+                }
+                font.getData().setScale(1.2f);
             }
         } else if (state == DockMasterGame.GameState.BOAT_SELECT) {
             drawCenteredLabel(batch, font, "BACK", btnBack);
@@ -271,14 +279,21 @@ public class InputController {
                 Rectangle r = boatButtons.get(i);
                 BoatDefinition b = boats.get(i);
                 boolean selected = b.id.equals(pm.getSelectedBoatId());
+
                 font.setColor(selected ? Color.YELLOW : Color.WHITE);
-                font.draw(batch, b.displayName, r.x + 10, r.y + 85);
-                font.setColor(Color.WHITE);
+                font.draw(batch, b.displayName, r.x + 15, r.y + 85);
                 font.getData().setScale(0.8f);
-                font.draw(batch, b.description, r.x + 10, r.y + 60);
-                font.draw(batch, "Value: $" + b.value, r.x + 10, r.y + 40);
-                if (b.displayName.contains("Soon")) font.draw(batch, "LOCKED", r.x + 10, r.y + 20);
-                else if (selected) font.draw(batch, "SELECTED", r.x + 10, r.y + 20);
+                font.setColor(Color.WHITE);
+                font.draw(batch, b.description, r.x + 15, r.y + 60);
+                font.draw(batch, "Value: $" + b.value, r.x + 15, r.y + 40);
+
+                if (b.displayName.contains("Soon")) {
+                    font.setColor(Color.GRAY);
+                    font.draw(batch, "COMING SOON", r.x + 180, r.y + 85);
+                } else if (selected) {
+                    font.setColor(Color.LIME);
+                    font.draw(batch, "SELECTED", r.x + 200, r.y + 85);
+                }
                 font.getData().setScale(1.2f);
             }
         } else if (state == DockMasterGame.GameState.DOCKED || state == DockMasterGame.GameState.FAILED) {
@@ -306,11 +321,22 @@ public class InputController {
     }
 
     private void drawButton(ShapeRenderer shape, Rectangle rect, boolean active) {
+        // Shadow
+        shape.setColor(0, 0, 0, 0.4f);
+        shape.rect(rect.x + 3, rect.y - 3, rect.width, rect.height);
+
+        // Button Body
         if (active) {
-            shape.setColor(1, 1, 0, 0.45f); // Yellowish for active/selected
+            shape.setColor(0.3f, 0.5f, 0.8f, 0.9f); // Blueish when active
         } else {
-            shape.setColor(1, 1, 1, 0.2f);
+            shape.setColor(0.15f, 0.15f, 0.2f, 0.7f); // Dark translucent
         }
         shape.rect(rect.x, rect.y, rect.width, rect.height);
+
+        // Bevel/Border
+        shape.setColor(1, 1, 1, 0.3f);
+        shape.rect(rect.x, rect.y + rect.height - 2, rect.width, 2); // Top highlight
+        shape.setColor(0, 0, 0, 0.3f);
+        shape.rect(rect.x, rect.y, rect.width, 2); // Bottom shadow
     }
 }

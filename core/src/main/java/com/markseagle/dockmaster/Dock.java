@@ -104,37 +104,75 @@ public class Dock {
         glowTimer += Gdx.graphics.getDeltaTime();
 
         shape.set(ShapeRenderer.ShapeType.Filled);
+
+        // 1. Draw Docks/Obstacles
         for (Polygon p : collisionPolys) {
             float x = p.getX();
             float y = p.getY();
             float w = p.getVertices()[2];
             float h = p.getVertices()[5];
-            shape.setColor(0.35f, 0.22f, 0.1f, 1f);
+
+            // Base shadow
+            shape.setColor(0, 0, 0, 0.2f);
+            shape.rect(x+4, y-4, w, h);
+
+            // Dock body (Brown)
+            shape.setColor(0.45f, 0.28f, 0.15f, 1f);
             shape.rect(x, y, w, h);
-            shape.setColor(0.25f, 0.15f, 0.05f, 1f);
+
+            // Plank lines
+            shape.setColor(0.35f, 0.2f, 0.1f, 1f);
             if (w > h) {
-                for (float lx = x + 10; lx < x + w; lx += 20) shape.rect(lx, y, 2, h);
+                for (float lx = x + 10; lx < x + w; lx += 25) {
+                    shape.rect(lx, y, 2, h);
+                }
             } else {
-                for (float ly = y + 10; ly < y + h; ly += 20) shape.rect(x, ly, w, 2);
+                for (float ly = y + 10; ly < y + h; ly += 25) {
+                    shape.rect(x, ly, w, 2);
+                }
             }
-            shape.setColor(0.5f, 0.5f, 0.5f, 1f);
-            shape.rect(x-2, y-2, w+4, 4);
-            shape.rect(x-2, y+h-2, w+4, 4);
-            shape.rect(x-2, y-2, 4, h+4);
-            shape.rect(x+w-2, y-2, 4, h+4);
+
+            // Pilings/Posts at corners
+            shape.setColor(0.2f, 0.1f, 0f, 1f);
+            float ps = 6f; // piling size
+            shape.circle(x, y, ps);
+            shape.circle(x + w, y, ps);
+            shape.circle(x, y + h, ps);
+            shape.circle(x + w, y + h, ps);
+
+            // Edge highlights
+            shape.setColor(0.6f, 0.6f, 0.6f, 0.5f);
+            shape.rect(x, y + h - 2, w, 2); // Top edge light
         }
 
+        // 2. Slip zone
         if (successfullyDocked) {
             shape.setColor(0f, 1f, 0f, 0.6f);
         } else {
-            float pulse = (float)(Math.sin(glowTimer * 5f) + 1.0f) * 0.2f;
-            shape.setColor(1f, 1f, 0.2f, 0.2f + pulse);
+            // Pulsing color based on boat status
+            float pulse = (float)(Math.sin(glowTimer * 6f) + 1.0f) * 0.15f;
+            shape.setColor(1f, 1f, 0.3f, 0.2f + pulse);
         }
         shape.rect(slipZone.x, slipZone.y, slipZone.width, slipZone.height);
 
+        // Target outline
+        shape.setColor(1, 1, 1, 0.5f);
+        shape.end();
+        shape.begin(ShapeRenderer.ShapeType.Line);
+        shape.rect(slipZone.x, slipZone.y, slipZone.width, slipZone.height);
+        shape.end();
+        shape.begin(ShapeRenderer.ShapeType.Filled);
+
+        // 3. Progress bar
         if (dockingTimer > 0 && !successfullyDocked) {
+            shape.setColor(Color.LIME);
+            shape.rect(slipZone.x, slipZone.y - 18, slipZone.width * getDockingProgress(), 10);
             shape.setColor(Color.WHITE);
-            shape.rect(slipZone.x, slipZone.y - 15, slipZone.width * getDockingProgress(), 8);
+            shape.end();
+            shape.begin(ShapeRenderer.ShapeType.Line);
+            shape.rect(slipZone.x, slipZone.y - 18, slipZone.width, 10);
+            shape.end();
+            shape.begin(ShapeRenderer.ShapeType.Filled);
         }
     }
 
