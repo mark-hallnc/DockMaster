@@ -73,7 +73,7 @@ public class InputController {
         }
     }
 
-    public void update(Viewport hudViewport, DockMasterGame.GameState state) {
+    public void update(Viewport hudViewport, DockMasterGame.GameState state, boolean boatTotaled) {
         nextPressed = false;
         retryPressed = false;
         levelSelectPressed = false;
@@ -93,9 +93,9 @@ public class InputController {
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             if (state == DockMasterGame.GameState.GARAGE) repairPressed = true;
-            else retryPressed = true;
+            else if (!boatTotaled) retryPressed = true;
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.N)) nextPressed = true;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.N) && !boatTotaled) nextPressed = true;
         if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
             if (state == DockMasterGame.GameState.TITLE) startPressed = true;
             if (state == DockMasterGame.GameState.GARAGE) repairPressed = true;
@@ -143,8 +143,8 @@ public class InputController {
                             if (boatButtons.get(j).contains(touch)) selectedBoatIndex = j;
                         }
                     } else if (state == DockMasterGame.GameState.DOCKED || state == DockMasterGame.GameState.FAILED) {
-                        if (btnRetry.contains(touch)) retryPressed = true;
-                        if (btnNext.contains(touch)) nextPressed = true;
+                        if (btnRetry.contains(touch) && !boatTotaled) retryPressed = true;
+                        if (btnNext.contains(touch) && !boatTotaled) nextPressed = true;
                         if (btnLevelSelectResults.contains(touch)) levelSelectPressed = true;
                         if (btnGarageResults.contains(touch)) garagePressed = true;
                         if (btnTitleResults.contains(touch)) titlePressed = true;
@@ -154,7 +154,7 @@ public class InputController {
         }
     }
 
-    public void drawShapes(ShapeRenderer shape, DockMasterGame.GameState state, String currentBoatId, BoatCatalog bc) {
+    public void drawShapes(ShapeRenderer shape, DockMasterGame.GameState state, String currentBoatId, BoatCatalog bc, boolean boatTotaled) {
         if (state == DockMasterGame.GameState.PLAYING) {
             drawButton(shape, btnLeft, left);
             drawButton(shape, btnRight, right);
@@ -179,15 +179,17 @@ public class InputController {
                 drawButton(shape, buttons.get(i), active);
             }
         } else if (state == DockMasterGame.GameState.DOCKED || state == DockMasterGame.GameState.FAILED) {
-            drawButton(shape, btnRetry, false);
-            drawButton(shape, btnNext, false);
+            if (!boatTotaled) {
+                drawButton(shape, btnRetry, false);
+                drawButton(shape, btnNext, false);
+            }
             drawButton(shape, btnLevelSelectResults, false);
             drawButton(shape, btnGarageResults, false);
             drawButton(shape, btnTitleResults, false);
         }
     }
 
-    public void drawLabels(SpriteBatch batch, BitmapFont font, DockMasterGame.GameState state, LevelManager lm, ProgressManager pm, BoatCatalog bc) {
+    public void drawLabels(SpriteBatch batch, BitmapFont font, DockMasterGame.GameState state, LevelManager lm, ProgressManager pm, BoatCatalog bc, boolean boatTotaled) {
         font.setColor(Color.WHITE);
         if (state == DockMasterGame.GameState.PLAYING) {
             drawCenteredLabel(batch, font, "LEFT", btnLeft);
@@ -237,8 +239,10 @@ public class InputController {
                 font.getData().setScale(1.2f);
             }
         } else if (state == DockMasterGame.GameState.DOCKED || state == DockMasterGame.GameState.FAILED) {
-            drawCenteredLabel(batch, font, "RETRY", btnRetry);
-            drawCenteredLabel(batch, font, "NEXT", btnNext);
+            if (!boatTotaled) {
+                drawCenteredLabel(batch, font, "RETRY", btnRetry);
+                drawCenteredLabel(batch, font, "NEXT", btnNext);
+            }
             drawCenteredLabel(batch, font, "LEVEL SELECT", btnLevelSelectResults);
             drawCenteredLabel(batch, font, "GARAGE", btnGarageResults);
             drawCenteredLabel(batch, font, "TITLE SCREEN", btnTitleResults);

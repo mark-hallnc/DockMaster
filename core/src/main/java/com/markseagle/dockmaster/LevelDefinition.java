@@ -14,6 +14,7 @@ public class LevelDefinition {
     public List<Rectangle> docks = new ArrayList<>();
     public int basePayout;
     public float parTimeSeconds;
+    public float targetAngle = 90f; // Default docking angle
 
     // Environmental forces
     public Vector2 windForce = new Vector2(0, 0);
