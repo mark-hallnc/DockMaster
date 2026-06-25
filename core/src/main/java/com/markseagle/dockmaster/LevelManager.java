@@ -73,8 +73,22 @@ public class LevelManager {
         levels.add(lvl4);
     }
 
+    public List<LevelDefinition> getLevels() {
+        return levels;
+    }
+
     public LevelDefinition getCurrentLevel() {
         return levels.get(currentLevelIndex);
+    }
+
+    public void setCurrentLevel(int index) {
+        if (index >= 0 && index < levels.size()) {
+            currentLevelIndex = index;
+        }
+    }
+
+    public int getCurrentLevelIndex() {
+        return currentLevelIndex;
     }
 
     public void nextLevel() {
@@ -83,5 +97,9 @@ public class LevelManager {
 
     public int getCurrentLevelNumber() {
         return currentLevelIndex + 1;
+    }
+
+    public boolean hasNextLevel() {
+        return currentLevelIndex < levels.size() - 1;
     }
 }
