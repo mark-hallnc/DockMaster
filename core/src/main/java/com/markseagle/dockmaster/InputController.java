@@ -14,14 +14,14 @@ import java.util.List;
 
 public class InputController {
     public boolean forward, reverse, left, right;
-    public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed;
+    public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed, trainingPressed, skipPressed;
     public boolean soundToggled, vibrateToggled;
     public boolean debugToggled = false;
 
     private final Rectangle btnLeft, btnRight, btnFwd, btnRev;
     private final Rectangle btnNext, btnRetry;
-    private final Rectangle btnStart, btnBack, btnLevelSelect, btnBoatSelect, btnGarage, btnSettings;
-    private final Rectangle btnRepair;
+    private final Rectangle btnStart, btnBack, btnLevelSelect, btnBoatSelect, btnGarage, btnSettings, btnTraining;
+    private final Rectangle btnRepair, btnSkip;
     private final Rectangle btnLevelSelectResults, btnTitleResults, btnGarageResults;
     private final Rectangle btnSound, btnVibrate;
 
@@ -42,11 +42,15 @@ public class InputController {
         btnFwd = new Rectangle(hudWidth - margin - btnSize * 2 - 20, margin, btnSize, btnSize);
 
         // Title screen
-        btnStart = new Rectangle(hudWidth / 2 - 100, 360, 200, 50);
-        btnLevelSelect = new Rectangle(hudWidth / 2 - 100, 300, 200, 50);
-        btnBoatSelect = new Rectangle(hudWidth / 2 - 100, 240, 200, 50);
-        btnGarage = new Rectangle(hudWidth / 2 - 100, 180, 200, 50);
-        btnSettings = new Rectangle(hudWidth / 2 - 100, 120, 200, 50);
+        btnStart = new Rectangle(hudWidth / 2 - 100, 360, 200, 45);
+        btnTraining = new Rectangle(hudWidth / 2 - 100, 310, 200, 45);
+        btnLevelSelect = new Rectangle(hudWidth / 2 - 100, 260, 200, 45);
+        btnBoatSelect = new Rectangle(hudWidth / 2 - 100, 210, 200, 45);
+        btnGarage = new Rectangle(hudWidth / 2 - 100, 160, 200, 45);
+        btnSettings = new Rectangle(hudWidth / 2 - 100, 110, 200, 45);
+
+        // Training UI
+        btnSkip = new Rectangle(hudWidth - 110, hudHeight - 60, 100, 40);
 
         // Settings screen
         btnSound = new Rectangle(hudWidth / 2 - 100, 300, 200, 60);
@@ -86,6 +90,8 @@ public class InputController {
         levelSelectPressed = false;
         boatSelectPressed = false;
         garagePressed = false;
+        trainingPressed = false;
+        skipPressed = false;
         repairPressed = false;
         settingsPressed = false;
         soundToggled = false;
@@ -128,14 +134,18 @@ public class InputController {
                 Vector2 touch = new Vector2(Gdx.input.getX(i), Gdx.input.getY(i));
                 hudViewport.unproject(touch);
 
-                if (state == DockMasterGame.GameState.PLAYING) {
+                if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
                     if (btnLeft.contains(touch)) left = true;
                     if (btnRight.contains(touch)) right = true;
                     if (btnFwd.contains(touch)) forward = true;
                     if (btnRev.contains(touch)) reverse = true;
+                    if (state == DockMasterGame.GameState.TUTORIAL && Gdx.input.justTouched()) {
+                        if (btnSkip.contains(touch)) skipPressed = true;
+                    }
                 } else if (Gdx.input.justTouched()) {
                     if (state == DockMasterGame.GameState.TITLE) {
                         if (btnStart.contains(touch)) startPressed = true;
+                        if (btnTraining.contains(touch)) trainingPressed = true;
                         if (btnLevelSelect.contains(touch)) levelSelectPressed = true;
                         if (btnBoatSelect.contains(touch)) boatSelectPressed = true;
                         if (btnGarage.contains(touch)) garagePressed = true;
@@ -170,13 +180,17 @@ public class InputController {
     }
 
     public void drawShapes(ShapeRenderer shape, DockMasterGame.GameState state, String currentBoatId, BoatCatalog bc, boolean boatTotaled) {
-        if (state == DockMasterGame.GameState.PLAYING) {
+        if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
             drawButton(shape, btnLeft, left);
             drawButton(shape, btnRight, right);
             drawButton(shape, btnFwd, forward);
             drawButton(shape, btnRev, reverse);
+            if (state == DockMasterGame.GameState.TUTORIAL) {
+                drawButton(shape, btnSkip, false);
+            }
         } else if (state == DockMasterGame.GameState.TITLE) {
             drawButton(shape, btnStart, false);
+            drawButton(shape, btnTraining, false);
             drawButton(shape, btnLevelSelect, false);
             drawButton(shape, btnBoatSelect, false);
             drawButton(shape, btnGarage, false);
@@ -211,13 +225,17 @@ public class InputController {
 
     public void drawLabels(SpriteBatch batch, BitmapFont font, DockMasterGame.GameState state, LevelManager lm, ProgressManager pm, BoatCatalog bc, boolean boatTotaled) {
         font.setColor(Color.WHITE);
-        if (state == DockMasterGame.GameState.PLAYING) {
+        if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
             drawCenteredLabel(batch, font, "LEFT", btnLeft);
             drawCenteredLabel(batch, font, "RIGHT", btnRight);
             drawCenteredLabel(batch, font, "FWD", btnFwd);
             drawCenteredLabel(batch, font, "REV", btnRev);
+            if (state == DockMasterGame.GameState.TUTORIAL) {
+                drawCenteredLabel(batch, font, "SKIP", btnSkip);
+            }
         } else if (state == DockMasterGame.GameState.TITLE) {
             drawCenteredLabel(batch, font, "START", btnStart);
+            drawCenteredLabel(batch, font, "TRAINING", btnTraining);
             drawCenteredLabel(batch, font, "LEVEL SELECT", btnLevelSelect);
             drawCenteredLabel(batch, font, "BOAT SELECT", btnBoatSelect);
             drawCenteredLabel(batch, font, "GARAGE", btnGarage);

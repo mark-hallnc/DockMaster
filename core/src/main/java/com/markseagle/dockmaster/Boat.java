@@ -69,13 +69,15 @@ public class Boat {
         }
 
         // Environmental Forces
-        Vector2 envForce = new Vector2(level.windForce);
-        for (CurrentZone zone : level.currentZones) {
-            if (zone.bounds.contains(x, y)) {
-                envForce.add(zone.force);
+        if (level != null) {
+            Vector2 envForce = new Vector2(level.windForce);
+            for (CurrentZone zone : level.currentZones) {
+                if (zone.bounds.contains(x, y)) {
+                    envForce.add(zone.force);
+                }
             }
+            velocity.add(envForce.x * delta, envForce.y * delta);
         }
-        velocity.add(envForce.x * delta, envForce.y * delta);
 
         // Apply Natural Water Drag
         velocity.scl((float) Math.pow(profile.waterDrag, delta * 60f));
