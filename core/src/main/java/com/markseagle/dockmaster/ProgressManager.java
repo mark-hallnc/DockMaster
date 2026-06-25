@@ -8,6 +8,8 @@ public class ProgressManager {
     private static final String KEY_UNLOCKED = "unlockedLevel";
     private static final String KEY_CASH = "playerCash";
     private static final String KEY_SELECTED_BOAT = "selectedBoatId";
+    private static final String KEY_SOUND = "soundEnabled";
+    private static final String KEY_VIBRATE = "vibrationEnabled";
 
     // Per-boat keys will be like "damage_skiff", "value_skiff"
     private static final String PREFIX_DAMAGE = "damage_";
@@ -20,12 +22,16 @@ public class ProgressManager {
     private int unlockedLevel; // 0-based index
     private int playerCash;
     private String selectedBoatId;
+    private boolean soundEnabled;
+    private boolean vibrationEnabled;
 
     public ProgressManager() {
         prefs = Gdx.app.getPreferences(PREFS_NAME);
         unlockedLevel = prefs.getInteger(KEY_UNLOCKED, 0);
         playerCash = prefs.getInteger(KEY_CASH, 0);
         selectedBoatId = prefs.getString(KEY_SELECTED_BOAT, "skiff");
+        soundEnabled = prefs.getBoolean(KEY_SOUND, true);
+        vibrationEnabled = prefs.getBoolean(KEY_VIBRATE, true);
     }
 
     public String getSelectedBoatId() {
@@ -103,5 +109,25 @@ public class ProgressManager {
             total += getBestStars(i);
         }
         return total;
+    }
+
+    public boolean isSoundEnabled() {
+        return soundEnabled;
+    }
+
+    public void setSoundEnabled(boolean enabled) {
+        this.soundEnabled = enabled;
+        prefs.putBoolean(KEY_SOUND, enabled);
+        prefs.flush();
+    }
+
+    public boolean isVibrationEnabled() {
+        return vibrationEnabled;
+    }
+
+    public void setVibrationEnabled(boolean enabled) {
+        this.vibrationEnabled = enabled;
+        prefs.putBoolean(KEY_VIBRATE, enabled);
+        prefs.flush();
     }
 }

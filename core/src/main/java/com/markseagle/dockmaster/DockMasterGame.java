@@ -14,7 +14,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
 public class DockMasterGame extends ApplicationAdapter {
-    public enum GameState { TITLE, LEVEL_SELECT, BOAT_SELECT, GARAGE, PLAYING, DOCKED, FAILED }
+    public enum GameState { TITLE, LEVEL_SELECT, BOAT_SELECT, GARAGE, SETTINGS, PLAYING, DOCKED, FAILED }
     private GameState state = GameState.TITLE;
 
     private SpriteBatch batch;
@@ -33,6 +33,7 @@ public class DockMasterGame extends ApplicationAdapter {
     private InputController inputController;
     private ProgressManager progressManager;
     private BoatCatalog boatCatalog;
+    private SoundManager soundManager;
 
     private float levelTimer = 0;
     private int currentPayout = 0;
@@ -52,6 +53,7 @@ public class DockMasterGame extends ApplicationAdapter {
     private FloatingText floatingText;
     private float introTimer = 0;
     private float shakeTimer = 0;
+    private float collisionFeedbackTimer = 0;
 
     private static final float WORLD_WIDTH = 800;
     private static final float WORLD_HEIGHT = 600;
@@ -77,6 +79,7 @@ public class DockMasterGame extends ApplicationAdapter {
         levelManager = new LevelManager();
         progressManager = new ProgressManager();
         boatCatalog = new BoatCatalog();
+        soundManager = new SoundManager(progressManager);
 
         dock = new Dock();
         wakeTrail = new WakeTrail();
@@ -95,6 +98,7 @@ public class DockMasterGame extends ApplicationAdapter {
         if (currentDamage >= 100) {
             showStatus("Repair this boat before launching.");
             state = GameState.GARAGE;
+            soundManager.play("fail");
             return;
         }
 
@@ -126,6 +130,7 @@ public class DockMasterGame extends ApplicationAdapter {
         starBonus = 0;
         introTimer = 3.0f;
         shakeTimer = 0;
+        collisionFeedbackTimer = 0;
         wakeTrail.clear();
         floatingText.clear();
         state = GameState.PLAYING;
@@ -155,6 +160,7 @@ public class DockMasterGame extends ApplicationAdapter {
             levelTimer += delta;
             if (introTimer > 0) introTimer -= delta;
             if (shakeTimer > 0) shakeTimer -= delta;
+            if (collisionFeedbackTimer > 0) collisionFeedbackTimer -= delta;
 
             boat.update(delta, inputController, levelManager.getCurrentLevel());
             dock.update(boat, delta);
@@ -162,11 +168,24 @@ public class DockMasterGame extends ApplicationAdapter {
             floatingText.update(delta);
 
             if (dock.checkCollision(boat)) {
-                float impact = boat.velocity.len();
-                float dmg = boat.handleCollision(impact);
-                if (dmg > 0) {
-                    floatingText.spawn("-" + (int)dmg + "%", boat.x, boat.y + 20, Color.RED);
-                    shakeTimer = 0.2f;
+                if (collisionFeedbackTimer <= 0) {
+                    float impact = boat.velocity.len();
+                    float dmg = boat.handleCollision(impact);
+                    if (dmg > 0) {
+                        floatingText.spawn("-" + (int)dmg + "%", boat.x, boat.y + 20, Color.RED);
+                        shakeTimer = 0.2f;
+                        collisionFeedbackTimer = 0.4f;
+
+                        if (impact > 100f) {
+                            soundManager.play("crash");
+                            vibrate(150);
+                        } else {
+                            soundManager.play("bump");
+                            vibrate(40);
+                        }
+                    }
+                } else {
+                    boat.handleCollision(boat.velocity.len()); // Still apply physics
                 }
             }
 
@@ -174,6 +193,8 @@ public class DockMasterGame extends ApplicationAdapter {
                 state = GameState.FAILED;
                 calculateResults();
                 saveBoatState();
+                soundManager.play("fail");
+                vibrate(400);
             } else if (dock.successfullyDocked) {
                 state = GameState.DOCKED;
                 bestStarsBefore = progressManager.getBestStars(levelManager.getCurrentLevelIndex());
@@ -185,6 +206,8 @@ public class DockMasterGame extends ApplicationAdapter {
                 }
                 progressManager.addCash(currentPayout + starBonus);
                 saveBoatState();
+                soundManager.play("success");
+                vibrate(200);
             }
             updateCamera(delta);
         }
@@ -197,6 +220,12 @@ public class DockMasterGame extends ApplicationAdapter {
         renderHud(boatTotaled);
     }
 
+    private void vibrate(int milliseconds) {
+        if (progressManager.isVibrationEnabled()) {
+            Gdx.input.vibrate(milliseconds);
+        }
+    }
+
     private void saveBoatState() {
         progressManager.setBoatDamage(boat.profile.id, boat.damage);
         boat.applyValueLoss();
@@ -205,17 +234,45 @@ public class DockMasterGame extends ApplicationAdapter {
 
     private void handleTransitions() {
         if (inputController.startPressed) {
+            soundManager.play("click");
             if (state == GameState.TITLE) loadLevel(levelManager.getCurrentLevelIndex());
         }
-        if (inputController.levelSelectPressed) state = GameState.LEVEL_SELECT;
-        if (inputController.boatSelectPressed) state = GameState.BOAT_SELECT;
-        if (inputController.garagePressed) state = GameState.GARAGE;
-        if (inputController.titlePressed) state = GameState.TITLE;
+        if (inputController.levelSelectPressed) {
+            soundManager.play("click");
+            state = GameState.LEVEL_SELECT;
+        }
+        if (inputController.boatSelectPressed) {
+            soundManager.play("click");
+            state = GameState.BOAT_SELECT;
+        }
+        if (inputController.garagePressed) {
+            soundManager.play("click");
+            state = GameState.GARAGE;
+        }
+        if (inputController.settingsPressed) {
+            soundManager.play("click");
+            state = GameState.SETTINGS;
+        }
+        if (inputController.titlePressed) {
+            soundManager.play("click");
+            state = GameState.TITLE;
+        }
+        if (inputController.soundToggled) {
+            progressManager.setSoundEnabled(!progressManager.isSoundEnabled());
+            soundManager.play("click");
+        }
+        if (inputController.vibrateToggled) {
+            progressManager.setVibrationEnabled(!progressManager.isVibrationEnabled());
+            soundManager.play("click");
+            vibrate(100);
+        }
 
         if (inputController.retryPressed && (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED)) {
+            soundManager.play("click");
             loadLevel(levelManager.getCurrentLevelIndex());
         }
         if (inputController.nextPressed && state == GameState.DOCKED) {
+            soundManager.play("click");
             if (levelManager.hasNextLevel()) {
                 levelManager.nextLevel();
                 loadLevel(levelManager.getCurrentLevelIndex());
@@ -225,13 +282,21 @@ public class DockMasterGame extends ApplicationAdapter {
         }
         if (state == GameState.LEVEL_SELECT && inputController.selectedLevelIndex != -1) {
             if (inputController.selectedLevelIndex <= progressManager.getUnlockedLevel() && inputController.selectedLevelIndex < levelManager.getLevels().size()) {
+                soundManager.play("click");
                 loadLevel(inputController.selectedLevelIndex);
+            } else {
+                soundManager.play("fail"); // Locked level
             }
         }
         if (state == GameState.BOAT_SELECT && inputController.selectedBoatIndex != -1) {
             if (inputController.selectedBoatIndex < boatCatalog.getBoats().size()) {
                 BoatDefinition b = boatCatalog.getBoats().get(inputController.selectedBoatIndex);
-                if (!b.displayName.contains("Soon")) progressManager.setSelectedBoatId(b.id);
+                if (!b.displayName.contains("Soon")) {
+                    soundManager.play("click");
+                    progressManager.setSelectedBoatId(b.id);
+                } else {
+                    soundManager.play("fail");
+                }
             }
         }
         if (state == GameState.GARAGE && inputController.repairPressed) performRepair();
@@ -247,6 +312,7 @@ public class DockMasterGame extends ApplicationAdapter {
             progressManager.setBoatDamage(profile.id, 0);
             progressManager.setBoatValue(profile.id, profile.value);
             showStatus("Boat Repaired!");
+            soundManager.play("repair");
         } else {
             int available = progressManager.getPlayerCash();
             if (available > 0) {
@@ -257,8 +323,10 @@ public class DockMasterGame extends ApplicationAdapter {
                 long newValue = profile.value - (long)(newDamage * (profile.value / 100f));
                 progressManager.setBoatValue(profile.id, newValue);
                 showStatus("Partial repair completed.");
+                soundManager.play("repair");
             } else {
                 showStatus("Not enough cash!");
+                soundManager.play("fail");
             }
         }
     }
@@ -287,7 +355,6 @@ public class DockMasterGame extends ApplicationAdapter {
         wakeTrail.draw(shapeRenderer);
         boat.draw(shapeRenderer);
 
-        // Debug target zone outline
         if (inputController.debugToggled && dock.slipZone != null) {
             shapeRenderer.setColor(Color.RED);
             shapeRenderer.end();
@@ -337,6 +404,7 @@ public class DockMasterGame extends ApplicationAdapter {
         else if (state == GameState.LEVEL_SELECT) drawLevelSelectScreen();
         else if (state == GameState.BOAT_SELECT) drawBoatSelectScreen();
         else if (state == GameState.GARAGE) drawGarageScreen();
+        else if (state == GameState.SETTINGS) drawSettingsScreen();
         else if (state == GameState.PLAYING) {
             drawHUDText();
             if (introTimer > 0) drawLevelIntro();
@@ -354,6 +422,12 @@ public class DockMasterGame extends ApplicationAdapter {
 
         if (inputController.debugToggled) drawDebugOverlay();
         batch.end();
+    }
+
+    private void drawSettingsScreen() {
+        font.setColor(Color.WHITE);
+        font.draw(batch, "SETTINGS", HUD_WIDTH / 2 - 40, HUD_HEIGHT - 40);
+        font.draw(batch, "Adjust your experience preferences.", HUD_WIDTH / 2 - 140, HUD_HEIGHT - 80);
     }
 
     private void drawLevelIntro() {
@@ -419,6 +493,10 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Your Cash: $" + progressManager.getPlayerCash(), 100, HUD_HEIGHT - 280);
         if (damage > 0) {
             font.draw(batch, "Repair Cost: $" + cost, 100, HUD_HEIGHT - 310);
+            if (progressManager.getPlayerCash() < cost) {
+                font.setColor(Color.RED);
+                font.draw(batch, "(Insufficient cash for full repair)", 300, HUD_HEIGHT - 310);
+            }
         } else {
             font.setColor(Color.GREEN);
             font.draw(batch, "No repairs needed", 100, HUD_HEIGHT - 310);
@@ -547,5 +625,6 @@ public class DockMasterGame extends ApplicationAdapter {
         shapeRenderer.dispose();
         font.dispose();
         titleFont.dispose();
+        soundManager.dispose();
     }
 }
