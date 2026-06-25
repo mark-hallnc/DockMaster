@@ -7,19 +7,21 @@ import com.badlogic.gdx.math.Polygon;
 import com.badlogic.gdx.math.Vector2;
 
 public class Boat {
+    // Tuning Constants
+    public static final float THRUST = 260f;
+    public static final float REVERSE_THRUST = 130f;
+    public static final float DRAG = 0.988f;
+    public static final float BRAKE_DRAG = 0.93f;
+    public static final float TURN_RATE = 150f;
+    public static final float DRIFT_FACTOR = 0.82f;
+    public static final float MAX_SPEED = 400f;
+
     public float x, y;
     public float angle; // in degrees
     public Vector2 velocity = new Vector2();
     public float damage = 0;
     public boolean active = true;
     public long boatValue = 10000;
-
-    private final float THRUST = 240f;
-    private final float REVERSE_THRUST = 120f;
-    private final float DRAG = 0.985f;
-    private final float BRAKE_DRAG = 0.94f;
-    private final float TURN_SPEED = 140f;
-    private final float DRIFT_FACTOR = 0.85f;
 
     public Polygon bounds;
     private final float length = 40;
@@ -46,10 +48,10 @@ public class Boat {
 
         float currentSpeed = velocity.len();
 
-        // Turning
-        float turnModifier = MathUtils.clamp(currentSpeed / 80f, 0.3f, 1.0f);
-        if (input.left) angle += TURN_SPEED * turnModifier * delta;
-        if (input.right) angle -= TURN_SPEED * turnModifier * delta;
+        // Turning - slightly more responsive if moving slowly
+        float turnModifier = MathUtils.clamp(currentSpeed / 60f, 0.4f, 1.0f);
+        if (input.left) angle += TURN_RATE * turnModifier * delta;
+        if (input.right) angle -= TURN_RATE * turnModifier * delta;
 
         // Thrust
         if (input.forward) {
@@ -69,7 +71,12 @@ public class Boat {
         float dragToApply = input.braking ? BRAKE_DRAG : DRAG;
         velocity.scl((float) Math.pow(dragToApply, delta * 60f));
 
-        // Sideways drift
+        // Speed cap
+        if (velocity.len() > MAX_SPEED) {
+            velocity.setLength(MAX_SPEED);
+        }
+
+        // Sideways drift (dampen sideways component)
         if (velocity.len() > 0.1f) {
             Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
             float forwardVelocityMag = velocity.dot(forwardDir);
@@ -92,15 +99,15 @@ public class Boat {
     }
 
     public void handleCollision(float impactSpeed) {
-        if (impactSpeed > 20f) {
-            float dmg = (impactSpeed - 20f) * 0.25f;
+        if (impactSpeed > 15f) {
+            float dmg = (impactSpeed - 15f) * 0.2f;
             damage = Math.min(100, damage + dmg);
             if (damage >= 100) {
                 active = false;
                 velocity.set(0, 0);
             }
         }
-        velocity.scl(-0.6f);
+        velocity.scl(-0.5f); // Bounce
     }
 
     public void applyValueLoss() {
@@ -111,6 +118,7 @@ public class Boat {
     public void draw(ShapeRenderer shape) {
         shape.setColor(damage >= 100 ? Color.GRAY : Color.WHITE);
 
+        // Use local transform for boat shape
         shape.flush();
         shape.getTransformMatrix().idt().translate(x, y, 0).rotate(0, 0, 1, angle);
         shape.updateMatrices();

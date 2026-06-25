@@ -13,29 +13,31 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 public class InputController {
     public boolean forward, reverse, left, right, braking;
     public boolean nextPressed, retryPressed;
+    public boolean debugToggled = false;
 
-    private Rectangle btnLeft, btnRight, btnFwd, btnRev, btnBrake;
-    private Rectangle btnNext, btnRetry;
+    private final Rectangle btnLeft, btnRight, btnFwd, btnRev, btnBrake;
+    private final Rectangle btnNext, btnRetry;
 
-    private final float btnSize = 100f;
-    private final float margin = 20f;
+    private final float btnSize = 120f; // Larger for mobile
+    private final float margin = 30f;
 
-    public InputController(float worldWidth, float worldHeight) {
-        // Steering on left
+    public InputController(float hudWidth, float hudHeight) {
+        // Steering on left side
         btnLeft = new Rectangle(margin, margin, btnSize, btnSize);
-        btnRight = new Rectangle(margin + btnSize + margin, margin, btnSize, btnSize);
+        btnRight = new Rectangle(margin + btnSize + 20, margin, btnSize, btnSize);
 
-        // Throttle on right
-        btnBrake = new Rectangle(worldWidth - margin - btnSize, margin, btnSize, btnSize);
-        btnRev = new Rectangle(worldWidth - (margin + btnSize) * 2, margin, btnSize, btnSize);
-        btnFwd = new Rectangle(worldWidth - (margin + btnSize) * 3, margin, btnSize, btnSize);
+        // Throttle on right side
+        btnBrake = new Rectangle(hudWidth - margin - btnSize, margin, btnSize, btnSize);
+        btnRev = new Rectangle(hudWidth - margin - btnSize * 2 - 20, margin, btnSize, btnSize);
+        btnFwd = new Rectangle(hudWidth - margin - btnSize * 3 - 40, margin, btnSize, btnSize);
 
-        // Results screen buttons
-        btnRetry = new Rectangle(worldWidth / 2 - 110, 150, 100, 50);
-        btnNext = new Rectangle(worldWidth / 2 + 10, 150, 100, 50);
+        // Results screen buttons (centered)
+        btnRetry = new Rectangle(hudWidth / 2 - 120, 140, 110, 60);
+        btnNext = new Rectangle(hudWidth / 2 + 10, 140, 110, 60);
     }
 
-    public void update(Viewport viewport, boolean isResultsScreen) {
+    public void update(Viewport hudViewport, boolean isResultsScreen) {
+        // Keyboard defaults
         forward = Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP);
         reverse = Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN);
         left = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
@@ -45,10 +47,15 @@ public class InputController {
         retryPressed = Gdx.input.isKeyJustPressed(Input.Keys.R);
         nextPressed = Gdx.input.isKeyJustPressed(Input.Keys.N);
 
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) {
+            debugToggled = !debugToggled;
+        }
+
+        // Multi-touch / Mouse
         for (int i = 0; i < 5; i++) {
             if (Gdx.input.isTouched(i)) {
                 Vector2 touch = new Vector2(Gdx.input.getX(i), Gdx.input.getY(i));
-                viewport.unproject(touch);
+                hudViewport.unproject(touch);
 
                 if (!isResultsScreen) {
                     if (btnLeft.contains(touch)) left = true;
@@ -57,8 +64,11 @@ public class InputController {
                     if (btnRev.contains(touch)) reverse = true;
                     if (btnBrake.contains(touch)) braking = true;
                 } else {
-                    if (btnRetry.contains(touch) && Gdx.input.justTouched()) retryPressed = true;
-                    if (btnNext.contains(touch) && Gdx.input.justTouched()) nextPressed = true;
+                    // For results screen, we only want single tap detection for buttons
+                    if (Gdx.input.justTouched()) {
+                        if (btnRetry.contains(touch)) retryPressed = true;
+                        if (btnNext.contains(touch)) nextPressed = true;
+                    }
                 }
             }
         }
@@ -78,24 +88,29 @@ public class InputController {
     }
 
     public void drawLabels(SpriteBatch batch, BitmapFont font, boolean isResultsScreen) {
-        font.setColor(Color.WHITE);
         if (!isResultsScreen) {
-            font.draw(batch, "L", btnLeft.x + 40, btnLeft.y + 60);
-            font.draw(batch, "R", btnRight.x + 40, btnRight.y + 60);
-            font.draw(batch, "FWD", btnFwd.x + 25, btnFwd.y + 60);
-            font.draw(batch, "REV", btnRev.x + 25, btnRev.y + 60);
-            font.draw(batch, "BRK", btnBrake.x + 25, btnBrake.y + 60);
+            font.setColor(Color.WHITE);
+            drawCenteredLabel(batch, font, "LEFT", btnLeft);
+            drawCenteredLabel(batch, font, "RIGHT", btnRight);
+            drawCenteredLabel(batch, font, "FWD", btnFwd);
+            drawCenteredLabel(batch, font, "REV", btnRev);
+            drawCenteredLabel(batch, font, "BRK", btnBrake);
         } else {
-            font.draw(batch, "RETRY", btnRetry.x + 20, btnRetry.y + 35);
-            font.draw(batch, "NEXT", btnNext.x + 25, btnNext.y + 35);
+            font.setColor(Color.WHITE);
+            drawCenteredLabel(batch, font, "RETRY", btnRetry);
+            drawCenteredLabel(batch, font, "NEXT", btnNext);
         }
+    }
+
+    private void drawCenteredLabel(SpriteBatch batch, BitmapFont font, String text, Rectangle rect) {
+        font.draw(batch, text, rect.x + rect.width / 2 - text.length() * 4, rect.y + rect.height / 2 + 5);
     }
 
     private void drawButton(ShapeRenderer shape, Rectangle rect, boolean active) {
         if (active) {
-            shape.setColor(1, 1, 1, 0.4f);
+            shape.setColor(1, 1, 1, 0.45f);
         } else {
-            shape.setColor(1, 1, 1, 0.15f);
+            shape.setColor(1, 1, 1, 0.2f);
         }
         shape.rect(rect.x, rect.y, rect.width, rect.height);
     }
