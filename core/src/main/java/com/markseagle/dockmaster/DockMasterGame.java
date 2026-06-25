@@ -8,7 +8,6 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -21,7 +20,6 @@ public class DockMasterGame extends ApplicationAdapter {
     private ShapeRenderer shapeRenderer;
     private BitmapFont font;
 
-    // Viewports & Cameras
     private Viewport worldViewport;
     private Viewport hudViewport;
     private OrthographicCamera worldCamera;
@@ -38,7 +36,6 @@ public class DockMasterGame extends ApplicationAdapter {
     private int damagePenalty = 0;
     private int timeBonus = 0;
 
-    // Constants for screen design
     private static final float WORLD_WIDTH = 800;
     private static final float WORLD_HEIGHT = 600;
     private static final float HUD_WIDTH = 800;
@@ -51,11 +48,9 @@ public class DockMasterGame extends ApplicationAdapter {
         font = new BitmapFont();
         font.getData().setScale(1.2f);
 
-        // Setup World View
         worldCamera = new OrthographicCamera();
         worldViewport = new FitViewport(WORLD_WIDTH, WORLD_HEIGHT, worldCamera);
 
-        // Setup HUD View (Fixed)
         hudCamera = new OrthographicCamera();
         hudViewport = new FitViewport(HUD_WIDTH, HUD_HEIGHT, hudCamera);
 
@@ -76,7 +71,6 @@ public class DockMasterGame extends ApplicationAdapter {
         levelTimer = 0;
         state = GameState.PLAYING;
 
-        // Initial camera position
         worldCamera.position.set(boat.x, boat.y, 0);
         worldCamera.update();
     }
@@ -85,7 +79,6 @@ public class DockMasterGame extends ApplicationAdapter {
     public void render() {
         float delta = Gdx.graphics.getDeltaTime();
 
-        // 1. Input Update
         inputController.update(hudViewport, state != GameState.PLAYING);
 
         if (inputController.retryPressed) {
@@ -96,7 +89,6 @@ public class DockMasterGame extends ApplicationAdapter {
             loadLevel(levelManager.getCurrentLevel());
         }
 
-        // 2. Game Logic Update
         if (state == GameState.PLAYING) {
             levelTimer += delta;
             boat.update(delta, inputController);
@@ -115,13 +107,10 @@ public class DockMasterGame extends ApplicationAdapter {
             }
         }
 
-        // 3. Camera Follow Logic
         updateCamera(delta);
 
-        // 4. Rendering
-        ScreenUtils.clear(0.1f, 0.3f, 0.5f, 1f); // Water Blue
+        ScreenUtils.clear(0.1f, 0.3f, 0.5f, 1f);
 
-        // --- WORLD RENDER ---
         worldViewport.apply();
         shapeRenderer.setProjectionMatrix(worldCamera.combined);
         batch.setProjectionMatrix(worldCamera.combined);
@@ -136,7 +125,6 @@ public class DockMasterGame extends ApplicationAdapter {
 
         Gdx.gl.glDisable(GL20.GL_BLEND);
 
-        // --- HUD RENDER ---
         hudViewport.apply();
         shapeRenderer.setProjectionMatrix(hudCamera.combined);
         batch.setProjectionMatrix(hudCamera.combined);
@@ -164,17 +152,9 @@ public class DockMasterGame extends ApplicationAdapter {
     }
 
     private void updateCamera(float delta) {
-        if (state == GameState.PLAYING) {
-            // Smoothly follow the boat
-            float lerp = 4f;
-            worldCamera.position.x += (boat.x - worldCamera.position.x) * lerp * delta;
-            worldCamera.position.y += (boat.y - worldCamera.position.y) * lerp * delta;
-        } else if (state == GameState.DOCKED) {
-            // Center on dock/boat
-            float lerp = 2f;
-            worldCamera.position.x += (boat.x - worldCamera.position.x) * lerp * delta;
-            worldCamera.position.y += (boat.y - worldCamera.position.y) * lerp * delta;
-        }
+        float lerp = 4f;
+        worldCamera.position.x += (boat.x - worldCamera.position.x) * lerp * delta;
+        worldCamera.position.y += (boat.y - worldCamera.position.y) * lerp * delta;
         worldCamera.update();
     }
 
@@ -205,7 +185,9 @@ public class DockMasterGame extends ApplicationAdapter {
         Color dmgColor = boat.damage > 50 ? Color.RED : (boat.damage > 20 ? Color.YELLOW : Color.WHITE);
         font.setColor(dmgColor);
         font.draw(batch, "Damage: " + (int)boat.damage + "%", 20, top - 80);
-        font.draw(batch, "Boat Val: $" + boat.boatValue, 20, top - 100);
+
+        font.setColor(Color.WHITE);
+        font.draw(batch, "Throttle: " + boat.getThrottleState(inputController), 20, top - 100);
 
         if (state == GameState.PLAYING && dock.getDockingProgress() > 0) {
             font.setColor(Color.YELLOW);
@@ -254,7 +236,6 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Angle: " + (int)boat.angle, x, y - 40);
         font.draw(batch, "Vel: " + (int)boat.velocity.len(), x, y - 60);
         font.draw(batch, "Lvl: " + levelManager.getCurrentLevelNumber(), x, y - 80);
-        font.draw(batch, "Cam: " + (int)worldCamera.position.x + ", " + (int)worldCamera.position.y, x, y - 100);
     }
 
     @Override

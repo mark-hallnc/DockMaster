@@ -8,13 +8,14 @@ import com.badlogic.gdx.math.Vector2;
 
 public class Boat {
     // Tuning Constants
-    public static final float THRUST = 260f;
-    public static final float REVERSE_THRUST = 130f;
-    public static final float DRAG = 0.988f;
-    public static final float BRAKE_DRAG = 0.93f;
-    public static final float TURN_RATE = 150f;
-    public static final float DRIFT_FACTOR = 0.82f;
-    public static final float MAX_SPEED = 400f;
+    public static final float FORWARD_THRUST = 280f;
+    public static final float REVERSE_THRUST = 140f;
+    public static final float WATER_DRAG = 0.985f; // Slower deceleration
+    public static final float SIDE_DRAG = 0.82f;
+    public static final float TURN_RATE = 160f;
+    public static final float LOW_SPEED_TURN_FACTOR = 0.4f;
+    public static final float MAX_FORWARD_SPEED = 350f;
+    public static final float MAX_REVERSE_SPEED = 120f;
 
     public float x, y;
     public float angle; // in degrees
@@ -46,47 +47,47 @@ public class Boat {
     public void update(float delta, InputController input) {
         if (!active) return;
 
-        float currentSpeed = velocity.len();
+        Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
+        float forwardVelocityMag = velocity.dot(forwardDir);
 
-        // Turning - slightly more responsive if moving slowly
-        float turnModifier = MathUtils.clamp(currentSpeed / 60f, 0.4f, 1.0f);
+        // Steering - Works better when moving (simulating water flow over rudder)
+        float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, LOW_SPEED_TURN_FACTOR, 1.0f);
         if (input.left) angle += TURN_RATE * turnModifier * delta;
         if (input.right) angle -= TURN_RATE * turnModifier * delta;
 
         // Thrust
         if (input.forward) {
             velocity.add(
-                MathUtils.cosDeg(angle) * THRUST * delta,
-                MathUtils.sinDeg(angle) * THRUST * delta
+                forwardDir.x * FORWARD_THRUST * delta,
+                forwardDir.y * FORWARD_THRUST * delta
             );
         }
         if (input.reverse) {
             velocity.add(
-                -MathUtils.cosDeg(angle) * REVERSE_THRUST * delta,
-                -MathUtils.sinDeg(angle) * REVERSE_THRUST * delta
+                -forwardDir.x * REVERSE_THRUST * delta,
+                -forwardDir.y * REVERSE_THRUST * delta
             );
         }
 
-        // Apply drag
-        float dragToApply = input.braking ? BRAKE_DRAG : DRAG;
-        velocity.scl((float) Math.pow(dragToApply, delta * 60f));
+        // Apply Natural Water Drag
+        velocity.scl((float) Math.pow(WATER_DRAG, delta * 60f));
 
-        // Speed cap
-        if (velocity.len() > MAX_SPEED) {
-            velocity.setLength(MAX_SPEED);
+        // Speed caps (Forward vs Reverse)
+        if (forwardVelocityMag > MAX_FORWARD_SPEED) {
+            velocity.setLength(MAX_FORWARD_SPEED);
+        } else if (forwardVelocityMag < -MAX_REVERSE_SPEED) {
+            velocity.setLength(MAX_REVERSE_SPEED); // Simplified cap for reverse
         }
 
-        // Sideways drift (dampen sideways component)
+        // Sideways drift (Dampen sideways component much more than forward)
         if (velocity.len() > 0.1f) {
-            Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
-            float forwardVelocityMag = velocity.dot(forwardDir);
-            Vector2 forwardVelocity = new Vector2(forwardDir).scl(forwardVelocityMag);
-            Vector2 sidewaysVelocity = new Vector2(velocity).sub(forwardVelocity);
-            sidewaysVelocity.scl((float) Math.pow(DRIFT_FACTOR, delta * 60f));
-            velocity.set(forwardVelocity.add(sidewaysVelocity));
+            Vector2 forwardVel = new Vector2(forwardDir).scl(forwardVelocityMag);
+            Vector2 sidewaysVel = new Vector2(velocity).sub(forwardVel);
+            sidewaysVel.scl((float) Math.pow(SIDE_DRAG, delta * 60f));
+            velocity.set(forwardVel.add(sidewaysVel));
         }
 
-        // Update position
+        // Final position update
         x += velocity.x * delta;
         y += velocity.y * delta;
 
@@ -107,7 +108,7 @@ public class Boat {
                 velocity.set(0, 0);
             }
         }
-        velocity.scl(-0.5f); // Bounce
+        velocity.scl(-0.4f); // Slight bounce
     }
 
     public void applyValueLoss() {
@@ -117,19 +118,15 @@ public class Boat {
 
     public void draw(ShapeRenderer shape) {
         shape.setColor(damage >= 100 ? Color.GRAY : Color.WHITE);
-
-        // Use local transform for boat shape
         shape.flush();
         shape.getTransformMatrix().idt().translate(x, y, 0).rotate(0, 0, 1, angle);
         shape.updateMatrices();
-
         shape.rect(-length / 2, -width / 2, length * 0.7f, width);
         shape.triangle(
             length * 0.2f, -width / 2,
             length * 0.2f, width / 2,
             length / 2 + 10, 0
         );
-
         shape.flush();
         shape.getTransformMatrix().idt();
         shape.updateMatrices();
@@ -143,5 +140,11 @@ public class Boat {
         this.damage = 0;
         this.active = true;
         updateBounds();
+    }
+
+    public String getThrottleState(InputController input) {
+        if (input.forward) return "Forward";
+        if (input.reverse) return "Reverse";
+        return "Neutral";
     }
 }

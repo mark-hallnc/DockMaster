@@ -64,7 +64,7 @@ public class Dock {
     public boolean isInsideSlipZone(Boat boat) {
         if (slipZone == null) return false;
         if (slipZone.contains(boat.x, boat.y)) {
-            if (boat.velocity.len() < 25f) {
+            if (boat.velocity.len() < 30f) {
                 float angleDiff = Math.abs(boat.angle % 360 - targetAngle);
                 if (angleDiff > 180) angleDiff = 360 - angleDiff;
                 return angleDiff < 25f; // More forgiving angle

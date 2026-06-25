@@ -11,14 +11,14 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
 public class InputController {
-    public boolean forward, reverse, left, right, braking;
+    public boolean forward, reverse, left, right;
     public boolean nextPressed, retryPressed;
     public boolean debugToggled = false;
 
-    private final Rectangle btnLeft, btnRight, btnFwd, btnRev, btnBrake;
+    private final Rectangle btnLeft, btnRight, btnFwd, btnRev;
     private final Rectangle btnNext, btnRetry;
 
-    private final float btnSize = 120f; // Larger for mobile
+    private final float btnSize = 120f;
     private final float margin = 30f;
 
     public InputController(float hudWidth, float hudHeight) {
@@ -27,22 +27,19 @@ public class InputController {
         btnRight = new Rectangle(margin + btnSize + 20, margin, btnSize, btnSize);
 
         // Throttle on right side
-        btnBrake = new Rectangle(hudWidth - margin - btnSize, margin, btnSize, btnSize);
-        btnRev = new Rectangle(hudWidth - margin - btnSize * 2 - 20, margin, btnSize, btnSize);
-        btnFwd = new Rectangle(hudWidth - margin - btnSize * 3 - 40, margin, btnSize, btnSize);
+        btnRev = new Rectangle(hudWidth - margin - btnSize, margin, btnSize, btnSize);
+        btnFwd = new Rectangle(hudWidth - margin - btnSize * 2 - 20, margin, btnSize, btnSize);
 
-        // Results screen buttons (centered)
+        // Results screen buttons
         btnRetry = new Rectangle(hudWidth / 2 - 120, 140, 110, 60);
         btnNext = new Rectangle(hudWidth / 2 + 10, 140, 110, 60);
     }
 
     public void update(Viewport hudViewport, boolean isResultsScreen) {
-        // Keyboard defaults
         forward = Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP);
         reverse = Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN);
         left = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
         right = Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
-        braking = Gdx.input.isKeyPressed(Input.Keys.SPACE);
 
         retryPressed = Gdx.input.isKeyJustPressed(Input.Keys.R);
         nextPressed = Gdx.input.isKeyJustPressed(Input.Keys.N);
@@ -51,7 +48,6 @@ public class InputController {
             debugToggled = !debugToggled;
         }
 
-        // Multi-touch / Mouse
         for (int i = 0; i < 5; i++) {
             if (Gdx.input.isTouched(i)) {
                 Vector2 touch = new Vector2(Gdx.input.getX(i), Gdx.input.getY(i));
@@ -62,9 +58,7 @@ public class InputController {
                     if (btnRight.contains(touch)) right = true;
                     if (btnFwd.contains(touch)) forward = true;
                     if (btnRev.contains(touch)) reverse = true;
-                    if (btnBrake.contains(touch)) braking = true;
                 } else {
-                    // For results screen, we only want single tap detection for buttons
                     if (Gdx.input.justTouched()) {
                         if (btnRetry.contains(touch)) retryPressed = true;
                         if (btnNext.contains(touch)) nextPressed = true;
@@ -80,7 +74,6 @@ public class InputController {
             drawButton(shape, btnRight, right);
             drawButton(shape, btnFwd, forward);
             drawButton(shape, btnRev, reverse);
-            drawButton(shape, btnBrake, braking);
         } else {
             drawButton(shape, btnRetry, false);
             drawButton(shape, btnNext, false);
@@ -94,7 +87,6 @@ public class InputController {
             drawCenteredLabel(batch, font, "RIGHT", btnRight);
             drawCenteredLabel(batch, font, "FWD", btnFwd);
             drawCenteredLabel(batch, font, "REV", btnRev);
-            drawCenteredLabel(batch, font, "BRK", btnBrake);
         } else {
             font.setColor(Color.WHITE);
             drawCenteredLabel(batch, font, "RETRY", btnRetry);
