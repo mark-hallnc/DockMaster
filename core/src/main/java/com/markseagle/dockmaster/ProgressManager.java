@@ -13,6 +13,9 @@ public class ProgressManager {
     private static final String PREFIX_DAMAGE = "damage_";
     private static final String PREFIX_VALUE = "value_";
 
+    // Per-level keys will be like "stars_0"
+    private static final String PREFIX_STARS = "stars_";
+
     private Preferences prefs;
     private int unlockedLevel; // 0-based index
     private int playerCash;
@@ -80,5 +83,25 @@ public class ProgressManager {
     public void setBoatValue(String boatId, long value) {
         prefs.putLong(PREFIX_VALUE + boatId, value);
         prefs.flush();
+    }
+
+    public int getBestStars(int levelIndex) {
+        return prefs.getInteger(PREFIX_STARS + levelIndex, 0);
+    }
+
+    public void setBestStars(int levelIndex, int stars) {
+        int currentBest = getBestStars(levelIndex);
+        if (stars > currentBest) {
+            prefs.putInteger(PREFIX_STARS + levelIndex, stars);
+            prefs.flush();
+        }
+    }
+
+    public int getTotalStars(int numLevels) {
+        int total = 0;
+        for (int i = 0; i < numLevels; i++) {
+            total += getBestStars(i);
+        }
+        return total;
     }
 }

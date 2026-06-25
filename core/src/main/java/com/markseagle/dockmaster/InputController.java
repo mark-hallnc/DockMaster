@@ -212,6 +212,11 @@ public class InputController {
                 font.setColor(unlocked ? Color.WHITE : Color.GRAY);
                 font.draw(batch, (i+1) + ". " + lvl.levelName, r.x + 10, r.y + 80);
                 font.draw(batch, lvl.destinationName, r.x + 10, r.y + 50);
+
+                int stars = pm.getBestStars(i);
+                String starStr = getStarString(stars);
+                font.draw(batch, starStr, r.x + 200, r.y + 80);
+
                 if (!unlocked) font.draw(batch, "LOCKED", r.x + 10, r.y + 20);
             }
         } else if (state == DockMasterGame.GameState.BOAT_SELECT) {
@@ -238,6 +243,15 @@ public class InputController {
             drawCenteredLabel(batch, font, "GARAGE", btnGarageResults);
             drawCenteredLabel(batch, font, "TITLE SCREEN", btnTitleResults);
         }
+    }
+
+    public String getStarString(int stars) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 3; i++) {
+            if (i < stars) sb.append("*");
+            else sb.append("-");
+        }
+        return "[" + sb.toString() + "]";
     }
 
     private void drawCenteredLabel(SpriteBatch batch, BitmapFont font, String text, Rectangle rect) {
