@@ -7,20 +7,21 @@ public class ProgressManager {
     private static final String PREFS_NAME = "DockMasterPrefs";
     private static final String KEY_UNLOCKED = "unlockedLevel";
     private static final String KEY_CASH = "playerCash";
-    private static final String KEY_BOAT_VAL = "boatValue";
     private static final String KEY_SELECTED_BOAT = "selectedBoatId";
+
+    // Per-boat keys will be like "damage_skiff", "value_skiff"
+    private static final String PREFIX_DAMAGE = "damage_";
+    private static final String PREFIX_VALUE = "value_";
 
     private Preferences prefs;
     private int unlockedLevel; // 0-based index
     private int playerCash;
-    private long boatValue;
     private String selectedBoatId;
 
     public ProgressManager() {
         prefs = Gdx.app.getPreferences(PREFS_NAME);
         unlockedLevel = prefs.getInteger(KEY_UNLOCKED, 0);
         playerCash = prefs.getInteger(KEY_CASH, 0);
-        boatValue = prefs.getLong(KEY_BOAT_VAL, 10000);
         selectedBoatId = prefs.getString(KEY_SELECTED_BOAT, "skiff");
     }
 
@@ -56,13 +57,28 @@ public class ProgressManager {
         prefs.flush();
     }
 
-    public long getBoatValue() {
-        return boatValue;
+    public void spendCash(int amount) {
+        playerCash -= amount;
+        if (playerCash < 0) playerCash = 0;
+        prefs.putInteger(KEY_CASH, playerCash);
+        prefs.flush();
     }
 
-    public void updateBoatValue(long newValue) {
-        boatValue = newValue;
-        prefs.putLong(KEY_BOAT_VAL, boatValue);
+    public float getBoatDamage(String boatId) {
+        return prefs.getFloat(PREFIX_DAMAGE + boatId, 0f);
+    }
+
+    public void setBoatDamage(String boatId, float damage) {
+        prefs.putFloat(PREFIX_DAMAGE + boatId, damage);
+        prefs.flush();
+    }
+
+    public long getBoatValue(String boatId, long defaultValue) {
+        return prefs.getLong(PREFIX_VALUE + boatId, defaultValue);
+    }
+
+    public void setBoatValue(String boatId, long value) {
+        prefs.putLong(PREFIX_VALUE + boatId, value);
         prefs.flush();
     }
 }

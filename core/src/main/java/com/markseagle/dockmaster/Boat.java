@@ -23,7 +23,6 @@ public class Boat {
         this.x = x;
         this.y = y;
         this.angle = startAngle;
-        this.boatValue = profile.value;
 
         initBounds();
     }
@@ -119,7 +118,8 @@ public class Boat {
     }
 
     public void applyValueLoss() {
-        boatValue -= (long)(damage * 10);
+        // Just for level end visual, actual persistence handled in DockMasterGame/ProgressManager
+        boatValue = profile.value - (long)(damage * (profile.value / 100f));
         if (boatValue < 0) boatValue = 0;
     }
 
@@ -143,13 +143,13 @@ public class Boat {
         shape.updateMatrices();
     }
 
-    public void reset(float x, float y, float angle) {
+    public void reset(float x, float y, float angle, float startDamage) {
         this.x = x;
         this.y = y;
         this.angle = angle;
         this.velocity.set(0, 0);
-        this.damage = 0;
-        this.active = true;
+        this.damage = startDamage;
+        this.active = startDamage < 100;
         updateBounds();
     }
 
