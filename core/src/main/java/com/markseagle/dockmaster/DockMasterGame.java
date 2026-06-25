@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
@@ -78,11 +79,12 @@ public class DockMasterGame extends ApplicationAdapter {
     @Override
     public void render() {
         float delta = Gdx.graphics.getDeltaTime();
+        LevelDefinition currentLevel = levelManager.getCurrentLevel();
 
         inputController.update(hudViewport, state != GameState.PLAYING);
 
         if (inputController.retryPressed) {
-            loadLevel(levelManager.getCurrentLevel());
+            loadLevel(currentLevel);
         }
         if (state == GameState.DOCKED && inputController.nextPressed) {
             levelManager.nextLevel();
@@ -91,7 +93,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         if (state == GameState.PLAYING) {
             levelTimer += delta;
-            boat.update(delta, inputController);
+            boat.update(delta, inputController, currentLevel);
             dock.update(boat, delta);
 
             if (dock.checkCollision(boat)) {
@@ -120,6 +122,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         dock.draw(shapeRenderer);
+        drawEnvironmentalIndicators(shapeRenderer, currentLevel);
         boat.draw(shapeRenderer);
         shapeRenderer.end();
 
@@ -149,6 +152,40 @@ public class DockMasterGame extends ApplicationAdapter {
             drawDebugOverlay();
         }
         batch.end();
+    }
+
+    private void drawEnvironmentalIndicators(ShapeRenderer shape, LevelDefinition level) {
+        // Draw current zone indicators (simple small arrows)
+        shape.setColor(0.3f, 0.7f, 1f, 0.3f);
+        for (CurrentZone zone : level.currentZones) {
+            // Fill zone lightly
+            shape.rect(zone.bounds.x, zone.bounds.y, zone.bounds.width, zone.bounds.height);
+
+            // Draw a few arrows in the zone
+            float spacing = 60f;
+            for (float ix = zone.bounds.x + 20; ix < zone.bounds.x + zone.bounds.width; ix += spacing) {
+                for (float iy = zone.bounds.y + 20; iy < zone.bounds.y + zone.bounds.height; iy += spacing) {
+                    drawArrow(shape, ix, iy, zone.force, 20);
+                }
+            }
+        }
+    }
+
+    private void drawArrow(ShapeRenderer shape, float x, float y, Vector2 force, float size) {
+        if (force.len() < 1) return;
+        shape.setColor(1, 1, 1, 0.4f);
+        float angle = force.angleDeg();
+
+        shape.flush();
+        shape.getTransformMatrix().idt().translate(x, y, 0).rotate(0, 0, 1, angle);
+        shape.updateMatrices();
+
+        shape.rect(0, -2, size, 4);
+        shape.triangle(size, -6, size, 6, size + 8, 0);
+
+        shape.flush();
+        shape.getTransformMatrix().idt();
+        shape.updateMatrices();
     }
 
     private void updateCamera(float delta) {
@@ -188,11 +225,37 @@ public class DockMasterGame extends ApplicationAdapter {
 
         font.setColor(Color.WHITE);
         font.draw(batch, "Throttle: " + boat.getThrottleState(inputController), 20, top - 100);
+        font.draw(batch, "Boat Val: $" + boat.boatValue, 20, top - 120);
+
+        // Wind/Current Info
+        String windInfo = getForceDescription(lvl.windForce);
+        font.draw(batch, "Wind: " + windInfo, 20, top - 140);
+
+        if (boat.inCurrentZone) {
+            font.setColor(Color.CYAN);
+            font.draw(batch, "IN CURRENT!", 20, top - 160);
+        }
 
         if (state == GameState.PLAYING && dock.getDockingProgress() > 0) {
             font.setColor(Color.YELLOW);
             font.draw(batch, "STABILIZING...", HUD_WIDTH / 2 - 50, HUD_HEIGHT - 50);
         }
+    }
+
+    private String getForceDescription(Vector2 force) {
+        if (force.len() == 0) return "Calm";
+        String dir = "";
+        if (Math.abs(force.x) > Math.abs(force.y)) {
+            dir = force.x > 0 ? "East" : "West";
+        } else {
+            dir = force.y > 0 ? "North" : "South";
+        }
+
+        String strength = "Light";
+        if (force.len() >= LevelManager.MEDIUM_FORCE) strength = "Medium";
+        if (force.len() >= LevelManager.STRONG_FORCE) strength = "Strong";
+
+        return dir + " " + strength;
     }
 
     private void drawResultsBackdrop() {
@@ -236,6 +299,7 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Angle: " + (int)boat.angle, x, y - 40);
         font.draw(batch, "Vel: " + (int)boat.velocity.len(), x, y - 60);
         font.draw(batch, "Lvl: " + levelManager.getCurrentLevelNumber(), x, y - 80);
+        font.draw(batch, "Env Force: " + boat.lastEnvForce.toString(), x, y - 100);
     }
 
     @Override

@@ -10,7 +10,7 @@ public class Boat {
     // Tuning Constants
     public static final float FORWARD_THRUST = 280f;
     public static final float REVERSE_THRUST = 140f;
-    public static final float WATER_DRAG = 0.985f; // Slower deceleration
+    public static final float WATER_DRAG = 0.985f;
     public static final float SIDE_DRAG = 0.82f;
     public static final float TURN_RATE = 160f;
     public static final float LOW_SPEED_TURN_FACTOR = 0.4f;
@@ -28,6 +28,10 @@ public class Boat {
     private final float length = 40;
     private final float width = 20;
 
+    // Debug info
+    public Vector2 lastEnvForce = new Vector2();
+    public boolean inCurrentZone = false;
+
     public Boat(float x, float y, float startAngle) {
         this.x = x;
         this.y = y;
@@ -44,13 +48,13 @@ public class Boat {
         updateBounds();
     }
 
-    public void update(float delta, InputController input) {
+    public void update(float delta, InputController input, LevelDefinition level) {
         if (!active) return;
 
         Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
         float forwardVelocityMag = velocity.dot(forwardDir);
 
-        // Steering - Works better when moving (simulating water flow over rudder)
+        // Steering
         float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, LOW_SPEED_TURN_FACTOR, 1.0f);
         if (input.left) angle += TURN_RATE * turnModifier * delta;
         if (input.right) angle -= TURN_RATE * turnModifier * delta;
@@ -69,17 +73,28 @@ public class Boat {
             );
         }
 
+        // Environmental Forces
+        lastEnvForce.set(level.windForce);
+        inCurrentZone = false;
+        for (CurrentZone zone : level.currentZones) {
+            if (zone.bounds.contains(x, y)) {
+                lastEnvForce.add(zone.force);
+                inCurrentZone = true;
+            }
+        }
+        velocity.add(lastEnvForce.x * delta, lastEnvForce.y * delta);
+
         // Apply Natural Water Drag
         velocity.scl((float) Math.pow(WATER_DRAG, delta * 60f));
 
-        // Speed caps (Forward vs Reverse)
+        // Speed caps
         if (forwardVelocityMag > MAX_FORWARD_SPEED) {
             velocity.setLength(MAX_FORWARD_SPEED);
         } else if (forwardVelocityMag < -MAX_REVERSE_SPEED) {
-            velocity.setLength(MAX_REVERSE_SPEED); // Simplified cap for reverse
+            velocity.setLength(MAX_REVERSE_SPEED);
         }
 
-        // Sideways drift (Dampen sideways component much more than forward)
+        // Sideways drift
         if (velocity.len() > 0.1f) {
             Vector2 forwardVel = new Vector2(forwardDir).scl(forwardVelocityMag);
             Vector2 sidewaysVel = new Vector2(velocity).sub(forwardVel);
@@ -108,7 +123,7 @@ public class Boat {
                 velocity.set(0, 0);
             }
         }
-        velocity.scl(-0.4f); // Slight bounce
+        velocity.scl(-0.4f);
     }
 
     public void applyValueLoss() {

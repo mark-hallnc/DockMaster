@@ -15,6 +15,10 @@ public class LevelDefinition {
     public int basePayout;
     public float parTimeSeconds;
 
+    // Environmental forces
+    public Vector2 windForce = new Vector2(0, 0);
+    public List<CurrentZone> currentZones = new ArrayList<>();
+
     public LevelDefinition(String destination, String name, float startX, float startY, float angle,
                            float targetX, float targetY, float targetW, float targetH, int payout, float parTime) {
         this.destinationName = destination;
@@ -28,5 +32,13 @@ public class LevelDefinition {
 
     public void addDock(float x, float y, float w, float h) {
         docks.add(new Rectangle(x, y, w, h));
+    }
+
+    public void setWind(float x, float y) {
+        windForce.set(x, y);
+    }
+
+    public void addCurrentZone(float x, float y, float w, float h, float fx, float fy) {
+        currentZones.add(new CurrentZone(x, y, w, h, fx, fy));
     }
 }
