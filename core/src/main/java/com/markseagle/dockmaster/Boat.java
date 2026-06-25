@@ -7,42 +7,36 @@ import com.badlogic.gdx.math.Polygon;
 import com.badlogic.gdx.math.Vector2;
 
 public class Boat {
-    // Tuning Constants
-    public static final float FORWARD_THRUST = 280f;
-    public static final float REVERSE_THRUST = 140f;
-    public static final float WATER_DRAG = 0.985f;
-    public static final float SIDE_DRAG = 0.82f;
-    public static final float TURN_RATE = 160f;
-    public static final float LOW_SPEED_TURN_FACTOR = 0.4f;
-    public static final float MAX_FORWARD_SPEED = 350f;
-    public static final float MAX_REVERSE_SPEED = 120f;
+    public BoatDefinition profile;
 
     public float x, y;
     public float angle; // in degrees
     public Vector2 velocity = new Vector2();
     public float damage = 0;
     public boolean active = true;
-    public long boatValue = 10000;
+    public long boatValue;
 
     public Polygon bounds;
-    private final float length = 40;
-    private final float width = 20;
 
-    // Debug info
-    public Vector2 lastEnvForce = new Vector2();
-    public boolean inCurrentZone = false;
-
-    public Boat(float x, float y, float startAngle) {
+    public Boat(float x, float y, float startAngle, BoatDefinition profile) {
+        this.profile = profile;
         this.x = x;
         this.y = y;
         this.angle = startAngle;
+        this.boatValue = profile.value;
 
+        initBounds();
+    }
+
+    private void initBounds() {
+        float l = profile.length;
+        float w = profile.width;
         float[] vertices = new float[] {
-            -length/2, -width/2,
-            length/2, -width/2,
-            length/2 + 10, 0,
-            length/2, width/2,
-            -length/2, width/2
+            -l/2, -w/2,
+            l/2, -w/2,
+            l/2 + 10, 0,
+            l/2, w/2,
+            -l/2, w/2
         };
         bounds = new Polygon(vertices);
         updateBounds();
@@ -55,50 +49,48 @@ public class Boat {
         float forwardVelocityMag = velocity.dot(forwardDir);
 
         // Steering
-        float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, LOW_SPEED_TURN_FACTOR, 1.0f);
-        if (input.left) angle += TURN_RATE * turnModifier * delta;
-        if (input.right) angle -= TURN_RATE * turnModifier * delta;
+        float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, profile.lowSpeedTurnFactor, 1.0f);
+        if (input.left) angle += profile.turnRate * turnModifier * delta;
+        if (input.right) angle -= profile.turnRate * turnModifier * delta;
 
         // Thrust
         if (input.forward) {
             velocity.add(
-                forwardDir.x * FORWARD_THRUST * delta,
-                forwardDir.y * FORWARD_THRUST * delta
+                forwardDir.x * profile.forwardThrust * delta,
+                forwardDir.y * profile.forwardThrust * delta
             );
         }
         if (input.reverse) {
             velocity.add(
-                -forwardDir.x * REVERSE_THRUST * delta,
-                -forwardDir.y * REVERSE_THRUST * delta
+                -forwardDir.x * profile.reverseThrust * delta,
+                -forwardDir.y * profile.reverseThrust * delta
             );
         }
 
         // Environmental Forces
-        lastEnvForce.set(level.windForce);
-        inCurrentZone = false;
+        Vector2 envForce = new Vector2(level.windForce);
         for (CurrentZone zone : level.currentZones) {
             if (zone.bounds.contains(x, y)) {
-                lastEnvForce.add(zone.force);
-                inCurrentZone = true;
+                envForce.add(zone.force);
             }
         }
-        velocity.add(lastEnvForce.x * delta, lastEnvForce.y * delta);
+        velocity.add(envForce.x * delta, envForce.y * delta);
 
         // Apply Natural Water Drag
-        velocity.scl((float) Math.pow(WATER_DRAG, delta * 60f));
+        velocity.scl((float) Math.pow(profile.waterDrag, delta * 60f));
 
         // Speed caps
-        if (forwardVelocityMag > MAX_FORWARD_SPEED) {
-            velocity.setLength(MAX_FORWARD_SPEED);
-        } else if (forwardVelocityMag < -MAX_REVERSE_SPEED) {
-            velocity.setLength(MAX_REVERSE_SPEED);
+        if (forwardVelocityMag > profile.maxForwardSpeed) {
+            velocity.setLength(profile.maxForwardSpeed);
+        } else if (forwardVelocityMag < -profile.maxReverseSpeed) {
+            velocity.setLength(profile.maxReverseSpeed);
         }
 
         // Sideways drift
         if (velocity.len() > 0.1f) {
             Vector2 forwardVel = new Vector2(forwardDir).scl(forwardVelocityMag);
             Vector2 sidewaysVel = new Vector2(velocity).sub(forwardVel);
-            sidewaysVel.scl((float) Math.pow(SIDE_DRAG, delta * 60f));
+            sidewaysVel.scl((float) Math.pow(profile.sideDrag, delta * 60f));
             velocity.set(forwardVel.add(sidewaysVel));
         }
 
@@ -132,15 +124,19 @@ public class Boat {
     }
 
     public void draw(ShapeRenderer shape) {
-        shape.setColor(damage >= 100 ? Color.GRAY : Color.WHITE);
+        shape.setColor(damage >= 100 ? Color.GRAY : profile.color);
         shape.flush();
         shape.getTransformMatrix().idt().translate(x, y, 0).rotate(0, 0, 1, angle);
         shape.updateMatrices();
-        shape.rect(-length / 2, -width / 2, length * 0.7f, width);
+
+        float l = profile.length;
+        float w = profile.width;
+
+        shape.rect(-l / 2, -w / 2, l * 0.7f, w);
         shape.triangle(
-            length * 0.2f, -width / 2,
-            length * 0.2f, width / 2,
-            length / 2 + 10, 0
+            l * 0.2f, -w / 2,
+            l * 0.2f, w / 2,
+            l / 2 + 10, 0
         );
         shape.flush();
         shape.getTransformMatrix().idt();
