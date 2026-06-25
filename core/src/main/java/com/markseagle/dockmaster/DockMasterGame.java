@@ -262,6 +262,12 @@ public class DockMasterGame extends ApplicationAdapter {
             updateCamera(delta);
         }
 
+        // Motor Loop Update
+        boolean motorShouldRun = (state == GameState.PLAYING || state == GameState.TUTORIAL) && boat != null && boat.active;
+        soundManager.updateMotorLoop(motorShouldRun, delta,
+            boat != null ? boat.velocity.len() : 0,
+            inputController.forward, inputController.reverse);
+
         ScreenUtils.clear(0.1f, 0.3f, 0.5f, 1f);
 
         if (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED) {
@@ -624,7 +630,7 @@ public class DockMasterGame extends ApplicationAdapter {
     }
 
     private void calculateResults() {
-        LevelDefinition lvl = levelManager.getCurrentLevel();
+        LevelDefinition lvl = currentLevel;
         float damageIncurred = boat.damage - levelStartDamage;
         damagePenalty = (int)(damageIncurred * 5);
         timeBonus = (levelTimer < lvl.parTimeSeconds) ? (int)((lvl.parTimeSeconds - levelTimer) * 10) : 0;
@@ -697,6 +703,14 @@ public class DockMasterGame extends ApplicationAdapter {
             font.draw(batch, "Progress: " + (int)(dock.getDockingProgress() * 100) + "%", x, y - 120);
             font.draw(batch, "Fail Reason: " + dock.lastFailureReason, x, y - 140);
         }
+
+        font.draw(batch, "Motor Vol: " + String.format("%.2f", soundManager.getMotorVolume()), x, y - 160);
+        font.draw(batch, "Motor Pitch: " + String.format("%.2f", soundManager.getMotorPitch()), x, y - 180);
+    }
+
+    @Override
+    public void pause() {
+        soundManager.stopMotorLoop();
     }
 
     @Override
