@@ -69,11 +69,11 @@ public class InputController {
         // Back button
         btnBack = new Rectangle(20, hudHeight - 80, 100, 50);
 
-        // Level select grid
-        for (int i = 0; i < 6; i++) {
-            float x = 100 + (i % 2) * 350;
-            float y = hudHeight - 200 - (i / 2) * 120;
-            levelButtons.add(new Rectangle(x, y, 300, 100));
+        // Level select grid (3x4)
+        for (int i = 0; i < 12; i++) {
+            float x = 40 + (i % 3) * 250;
+            float y = hudHeight - 140 - (i / 3) * 110;
+            levelButtons.add(new Rectangle(x, y, 230, 90));
         }
 
         // Boat select grid
@@ -251,24 +251,26 @@ public class InputController {
             drawCenteredLabel(batch, font, "BACK", btnBack);
             List<LevelDefinition> levels = lm.getLevels();
             for (int i = 0; i < levels.size(); i++) {
+                if (i >= levelButtons.size()) break;
                 Rectangle r = levelButtons.get(i);
                 LevelDefinition lvl = levels.get(i);
                 boolean unlocked = i <= pm.getUnlockedLevel();
 
                 // Card Details
                 font.setColor(unlocked ? Color.WHITE : Color.GRAY);
-                font.draw(batch, (i+1) + ". " + lvl.levelName, r.x + 15, r.y + 85);
-                font.getData().setScale(0.8f);
-                font.draw(batch, lvl.destinationName, r.x + 15, r.y + 60);
-                font.draw(batch, "Payout: $" + lvl.basePayout, r.x + 15, r.y + 40);
+                font.getData().setScale(0.7f);
+                font.draw(batch, (i+1) + ". " + lvl.levelName, r.x + 10, r.y + 75);
+                font.getData().setScale(0.6f);
+                font.draw(batch, lvl.destinationName, r.x + 10, r.y + 55);
+                font.draw(batch, "Payout: $" + lvl.basePayout, r.x + 10, r.y + 40);
 
                 int stars = pm.getBestStars(i);
                 font.setColor(Color.YELLOW);
-                font.draw(batch, getStarString(stars), r.x + 200, r.y + 40);
+                font.draw(batch, getStarString(stars), r.x + 140, r.y + 40);
 
                 if (!unlocked) {
                     font.setColor(Color.RED);
-                    font.draw(batch, "LOCKED", r.x + 200, r.y + 85);
+                    font.draw(batch, "LOCKED", r.x + 140, r.y + 75);
                 }
                 font.getData().setScale(1.2f);
             }
