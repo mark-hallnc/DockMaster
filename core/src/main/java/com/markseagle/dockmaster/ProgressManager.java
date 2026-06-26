@@ -19,6 +19,9 @@ public class ProgressManager {
     // Per-level keys will be like "stars_0"
     private static final String PREFIX_STARS = "stars_";
 
+    // Upgrade keys
+    private static final String PREFIX_UPGRADE = "upgrade_";
+
     private Preferences prefs;
     private int unlockedLevel; // 0-based index
     private int playerCash;
@@ -112,6 +115,15 @@ public class ProgressManager {
             total += getBestStars(i);
         }
         return total;
+    }
+
+    public int getUpgradeLevel(String boatId, String category) {
+        return prefs.getInteger(PREFIX_UPGRADE + category + "_" + boatId, 0);
+    }
+
+    public void setUpgradeLevel(String boatId, String category, int level) {
+        prefs.putInteger(PREFIX_UPGRADE + category + "_" + boatId, level);
+        prefs.flush();
     }
 
     public boolean isSoundEnabled() {

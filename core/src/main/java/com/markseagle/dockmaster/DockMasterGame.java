@@ -169,6 +169,12 @@ public class DockMasterGame extends ApplicationAdapter {
         boat.reset(level.startPos.x, level.startPos.y, level.startAngle, levelStartDamage);
         boat.boatValue = progressManager.getBoatValue(profile.id, profile.value);
 
+        // Apply Upgrades
+        boat.engineLevel = progressManager.getUpgradeLevel(profile.id, "engine");
+        boat.steeringLevel = progressManager.getUpgradeLevel(profile.id, "steering");
+        boat.hullLevel = progressManager.getUpgradeLevel(profile.id, "hull");
+        boat.reverseLevel = progressManager.getUpgradeLevel(profile.id, "reverse");
+
         dock.setLevel(level);
         levelTimer = 0;
         currentStars = 0;
@@ -420,6 +426,35 @@ public class DockMasterGame extends ApplicationAdapter {
             }
         }
         if (state == GameState.GARAGE && inputController.repairPressed) performRepair();
+
+        if (state == GameState.GARAGE) {
+            if (inputController.upgradeEnginePressed) performUpgrade("engine");
+            if (inputController.upgradeSteeringPressed) performUpgrade("steering");
+            if (inputController.upgradeHullPressed) performUpgrade("hull");
+            if (inputController.upgradeReversePressed) performUpgrade("reverse");
+        }
+    }
+
+    private void performUpgrade(String category) {
+        String boatId = progressManager.getSelectedBoatId();
+        int currentLevel = progressManager.getUpgradeLevel(boatId, category);
+        if (currentLevel >= 3) {
+            showStatus("Already at max level!");
+            soundManager.play("fail");
+            return;
+        }
+
+        int cost = InputController.getUpgradeCost(currentLevel + 1);
+        if (progressManager.getPlayerCash() >= cost) {
+            progressManager.spendCash(cost);
+            progressManager.setUpgradeLevel(boatId, category, currentLevel + 1);
+            showStatus(category.toUpperCase() + " Upgraded!");
+            soundManager.play("cash");
+            vibrate(100);
+        } else {
+            showStatus("Not enough cash!");
+            soundManager.play("fail");
+        }
     }
 
     private void performRepair() {
@@ -863,6 +898,14 @@ public class DockMasterGame extends ApplicationAdapter {
     private void drawBoatSelectText() {
         font.setColor(Color.YELLOW);
         font.draw(batch, "SELECT BOAT", HUD_WIDTH / 2 - 80, HUD_HEIGHT - 40);
+
+        BoatDefinition b = boatCatalog.getBoatById(progressManager.getSelectedBoatId());
+        int e = progressManager.getUpgradeLevel(b.id, "engine");
+        int s = progressManager.getUpgradeLevel(b.id, "steering");
+        int h = progressManager.getUpgradeLevel(b.id, "hull");
+        int r = progressManager.getUpgradeLevel(b.id, "reverse");
+        font.setColor(Color.WHITE);
+        font.draw(batch, "Selected Upgrades: E" + e + " S" + s + " H" + h + " R" + r, 20, 40);
     }
 
     private void drawBoatPreviews() {
@@ -1070,7 +1113,8 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Motor Vol: " + String.format("%.2f", soundManager.getMotorVolume()), x, y - 160);
         font.draw(batch, "Motor Pitch: " + String.format("%.2f", soundManager.getMotorPitch()), x, y - 180);
 
-        font.draw(batch, "Tex Mode: " + (textureManager.hasTexture("boat_" + boat.profile.id) ? "ON" : "OFF (Shape)"), x, y - 200);
+        font.draw(batch, "Upgrades: E" + boat.engineLevel + " S" + boat.steeringLevel + " H" + boat.hullLevel + " R" + boat.reverseLevel, x, y - 200);
+        font.draw(batch, "Tex Mode: " + (textureManager.hasTexture("boat_" + boat.profile.id) ? "ON" : "OFF (Shape)"), x, y - 220);
     }
 
     @Override

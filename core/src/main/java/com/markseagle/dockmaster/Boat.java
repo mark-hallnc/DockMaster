@@ -19,6 +19,12 @@ public class Boat {
     public Polygon bounds;
     private float flashTimer = 0;
 
+    // Upgrade Levels
+    public int engineLevel = 0;
+    public int steeringLevel = 0;
+    public int hullLevel = 0;
+    public int reverseLevel = 0;
+
     public Boat(float x, float y, float startAngle, BoatDefinition profile) {
         this.profile = profile;
         this.x = x;
@@ -65,22 +71,28 @@ public class Boat {
         Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
         float forwardVelocityMag = velocity.dot(forwardDir);
 
+        // Effective Stats with Upgrades
+        float effectiveThrust = profile.forwardThrust * (1.0f + engineLevel * 0.05f);
+        float effectiveMaxSpeed = profile.maxForwardSpeed * (1.0f + engineLevel * 0.05f);
+        float effectiveTurnRate = profile.turnRate * (1.0f + steeringLevel * 0.05f);
+        float effectiveReverseThrust = profile.reverseThrust * (1.0f + reverseLevel * 0.07f);
+
         // Steering
         float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, profile.lowSpeedTurnFactor, 1.0f);
-        if (input.left) angle += profile.turnRate * turnModifier * delta;
-        if (input.right) angle -= profile.turnRate * turnModifier * delta;
+        if (input.left) angle += effectiveTurnRate * turnModifier * delta;
+        if (input.right) angle -= effectiveTurnRate * turnModifier * delta;
 
         // Thrust
         if (input.forward) {
             velocity.add(
-                forwardDir.x * profile.forwardThrust * delta,
-                forwardDir.y * profile.forwardThrust * delta
+                forwardDir.x * effectiveThrust * delta,
+                forwardDir.y * effectiveThrust * delta
             );
         }
         if (input.reverse) {
             velocity.add(
-                -forwardDir.x * profile.reverseThrust * delta,
-                -forwardDir.y * profile.reverseThrust * delta
+                -forwardDir.x * effectiveReverseThrust * delta,
+                -forwardDir.y * effectiveReverseThrust * delta
             );
         }
 
@@ -99,8 +111,8 @@ public class Boat {
         velocity.scl((float) Math.pow(profile.waterDrag, delta * 60f));
 
         // Speed caps
-        if (forwardVelocityMag > profile.maxForwardSpeed) {
-            velocity.setLength(profile.maxForwardSpeed);
+        if (forwardVelocityMag > effectiveMaxSpeed) {
+            velocity.setLength(effectiveMaxSpeed);
         } else if (forwardVelocityMag < -profile.maxReverseSpeed) {
             velocity.setLength(profile.maxReverseSpeed);
         }
@@ -129,6 +141,9 @@ public class Boat {
         float dmg = 0;
         if (impactSpeed > 15f) {
             dmg = (impactSpeed - 15f) * 0.2f;
+            // Hull Upgrade Reduction
+            dmg *= (1.0f - hullLevel * 0.1f);
+
             damage = Math.min(100, damage + dmg);
             if (damage >= 100) {
                 active = false;
@@ -142,7 +157,8 @@ public class Boat {
 
     public void applyValueLoss() {
         // Just for level end visual, actual persistence handled in DockMasterGame/ProgressManager
-        boatValue = profile.value - (long)(damage * (profile.value / 100f));
+        float retentionFactor = 1.0f - hullLevel * 0.05f; // Keep 5% more value per hull level
+        boatValue = profile.value - (long)(damage * (profile.value / 100f) * retentionFactor);
         if (boatValue < 0) boatValue = 0;
     }
 

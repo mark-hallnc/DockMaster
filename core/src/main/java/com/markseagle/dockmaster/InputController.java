@@ -15,6 +15,7 @@ import java.util.List;
 public class InputController {
     public boolean forward, reverse, left, right;
     public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed, trainingPressed, skipPressed;
+    public boolean upgradeEnginePressed, upgradeSteeringPressed, upgradeHullPressed, upgradeReversePressed;
     public boolean soundToggled, vibrateToggled;
     public boolean debugToggled = false;
 
@@ -22,6 +23,7 @@ public class InputController {
     private final Rectangle btnNext, btnRetry;
     private final Rectangle btnStart, btnBack, btnLevelSelect, btnBoatSelect, btnGarage, btnSettings, btnTraining;
     private final Rectangle btnRepair, btnSkip;
+    private final Rectangle btnUpgradeEngine, btnUpgradeSteering, btnUpgradeHull, btnUpgradeReverse;
     private final Rectangle btnLevelSelectResults, btnTitleResults, btnGarageResults;
     private final Rectangle btnSound, btnVibrate;
 
@@ -58,6 +60,13 @@ public class InputController {
 
         // Garage screen
         btnRepair = new Rectangle(hudWidth / 2 - 100, 150, 200, 60);
+        float upW = 160;
+        float upH = 80;
+        float upMargin = 20;
+        btnUpgradeEngine = new Rectangle(hudWidth / 2 - upW - upMargin, 380, upW, upH);
+        btnUpgradeSteering = new Rectangle(hudWidth / 2 + upMargin, 380, upW, upH);
+        btnUpgradeHull = new Rectangle(hudWidth / 2 - upW - upMargin, 280, upW, upH);
+        btnUpgradeReverse = new Rectangle(hudWidth / 2 + upMargin, 280, upW, upH);
 
         // Results screen
         btnRetry = new Rectangle(hudWidth / 2 - 110, 240, 100, 45);
@@ -93,6 +102,10 @@ public class InputController {
         trainingPressed = false;
         skipPressed = false;
         repairPressed = false;
+        upgradeEnginePressed = false;
+        upgradeSteeringPressed = false;
+        upgradeHullPressed = false;
+        upgradeReversePressed = false;
         settingsPressed = false;
         soundToggled = false;
         vibrateToggled = false;
@@ -157,6 +170,10 @@ public class InputController {
                     } else if (state == DockMasterGame.GameState.GARAGE) {
                         if (btnBack.contains(touch)) titlePressed = true;
                         if (btnRepair.contains(touch)) repairPressed = true;
+                        if (btnUpgradeEngine.contains(touch)) upgradeEnginePressed = true;
+                        if (btnUpgradeSteering.contains(touch)) upgradeSteeringPressed = true;
+                        if (btnUpgradeHull.contains(touch)) upgradeHullPressed = true;
+                        if (btnUpgradeReverse.contains(touch)) upgradeReversePressed = true;
                     } else if (state == DockMasterGame.GameState.LEVEL_SELECT) {
                         if (btnBack.contains(touch)) titlePressed = true;
                         for (int j = 0; j < levelButtons.size(); j++) {
@@ -202,6 +219,10 @@ public class InputController {
         } else if (state == DockMasterGame.GameState.GARAGE) {
             drawButton(shape, btnBack, false);
             drawButton(shape, btnRepair, false);
+            drawButton(shape, btnUpgradeEngine, false);
+            drawButton(shape, btnUpgradeSteering, false);
+            drawButton(shape, btnUpgradeHull, false);
+            drawButton(shape, btnUpgradeReverse, false);
         } else if (state == DockMasterGame.GameState.LEVEL_SELECT || state == DockMasterGame.GameState.BOAT_SELECT) {
             drawButton(shape, btnBack, false);
             List<Rectangle> buttons = (state == DockMasterGame.GameState.LEVEL_SELECT) ? levelButtons : boatButtons;
@@ -247,6 +268,12 @@ public class InputController {
         } else if (state == DockMasterGame.GameState.GARAGE) {
             drawCenteredLabel(batch, font, "BACK", btnBack);
             drawCenteredLabel(batch, font, "REPAIR", btnRepair);
+
+            BoatDefinition profile = bc.getBoatById(pm.getSelectedBoatId());
+            drawUpgradeLabel(batch, font, "ENGINE", btnUpgradeEngine, pm.getUpgradeLevel(profile.id, "engine"));
+            drawUpgradeLabel(batch, font, "STEERING", btnUpgradeSteering, pm.getUpgradeLevel(profile.id, "steering"));
+            drawUpgradeLabel(batch, font, "HULL", btnUpgradeHull, pm.getUpgradeLevel(profile.id, "hull"));
+            drawUpgradeLabel(batch, font, "REVERSE", btnUpgradeReverse, pm.getUpgradeLevel(profile.id, "reverse"));
         } else if (state == DockMasterGame.GameState.LEVEL_SELECT) {
             drawCenteredLabel(batch, font, "BACK", btnBack);
             List<LevelDefinition> levels = lm.getLevels();
@@ -316,6 +343,28 @@ public class InputController {
             else sb.append("-");
         }
         return "[" + sb.toString() + "]";
+    }
+
+    private void drawUpgradeLabel(SpriteBatch batch, BitmapFont font, String title, Rectangle rect, int currentLevel) {
+        font.setColor(Color.YELLOW);
+        font.draw(batch, title, rect.x + 10, rect.y + rect.height - 10);
+        font.setColor(Color.WHITE);
+        font.getData().setScale(0.7f);
+        font.draw(batch, "LVL: " + currentLevel, rect.x + 10, rect.y + rect.height - 35);
+        if (currentLevel < 3) {
+            font.draw(batch, "NEXT: $" + getUpgradeCost(currentLevel + 1), rect.x + 10, rect.y + rect.height - 55);
+        } else {
+            font.setColor(Color.LIME);
+            font.draw(batch, "MAXED", rect.x + 10, rect.y + rect.height - 55);
+        }
+        font.getData().setScale(1.2f);
+    }
+
+    public static int getUpgradeCost(int nextLevel) {
+        if (nextLevel == 1) return 750;
+        if (nextLevel == 2) return 2000;
+        if (nextLevel == 3) return 4500;
+        return 0;
     }
 
     private void drawCenteredLabel(SpriteBatch batch, BitmapFont font, String text, Rectangle rect) {
