@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -61,6 +62,7 @@ public class DockMasterGame extends ApplicationAdapter {
     private float shakeTimer = 0;
     private float collisionFeedbackTimer = 0;
     private float totalTime = 0;
+    private boolean showHelp = false;
 
     private static final float WORLD_WIDTH = 800;
     private static final float WORLD_HEIGHT = 600;
@@ -182,6 +184,8 @@ public class DockMasterGame extends ApplicationAdapter {
         worldCamera.update();
     }
 
+    private float dockingFeedbackTimer = 0;
+
     @Override
     public void render() {
         float delta = Gdx.graphics.getDeltaTime();
@@ -208,11 +212,37 @@ public class DockMasterGame extends ApplicationAdapter {
 
             boat.update(delta, inputController, currentLevel);
             dock.update(boat, delta);
-            wakeTrail.update(delta, boat.x, boat.y, boat.velocity.len());
+
+            // Wake from stern
+            Vector2 stern = boat.getSternPos();
+            wakeTrail.update(delta, stern.x, stern.y, boat.velocity.len());
+
+            // Throttle turbulence
+            if (inputController.forward) {
+                wakeTrail.spawn(stern.x, stern.y, 200f);
+            }
+            if (inputController.reverse) {
+                Vector2 bow = boat.getBowPos();
+                wakeTrail.spawn(bow.x, bow.y, 100f);
+            }
+
             floatingText.update(delta);
 
             if (state == GameState.TUTORIAL) {
                 tutorialManager.update(delta, boat, inputController, dock);
+            }
+
+            // Proximity/Approach feedback
+            if (dock.slipZone.contains(boat.x, boat.y)) {
+                dockingFeedbackTimer += delta;
+                if (dockingFeedbackTimer > 1.5f) {
+                    dockingFeedbackTimer = 0;
+                    float speed = boat.velocity.len();
+                    if (speed > 40f) floatingText.spawn("TOO FAST!", boat.x, boat.y + 20, Color.ORANGE);
+                    else if (speed > 5f) floatingText.spawn("GOOD SPEED", boat.x, boat.y + 20, Color.LIME);
+                }
+            } else {
+                dockingFeedbackTimer = 0;
             }
 
             if (dock.checkCollision(boat)) {
@@ -247,6 +277,11 @@ public class DockMasterGame extends ApplicationAdapter {
                 state = GameState.FAILED;
                 calculateResults();
                 saveBoatState();
+
+                // Failure Feedback
+                floatingText.spawn("BOAT TOTALED!", boat.x, boat.y + 40, Color.RED);
+                shakeTimer = 0.5f;
+
                 soundManager.play("fail");
                 vibrate(400);
             } else if (dock.successfullyDocked) {
@@ -257,6 +292,13 @@ public class DockMasterGame extends ApplicationAdapter {
                     state = GameState.DOCKED;
                     bestStarsBefore = progressManager.getBestStars(levelManager.getCurrentLevelIndex());
                     calculateResults();
+
+                    // Success Feedback
+                    String successMsg = "SUCCESS!";
+                    if (currentStars == 3) successMsg = "PERFECT DOCK!";
+                    else if (currentStars == 2) successMsg = "GREAT JOB!";
+                    floatingText.spawn(successMsg, boat.x, boat.y + 40, Color.LIME);
+
                     if (currentStars >= 1) progressManager.unlockNextLevel(levelManager.getCurrentLevelIndex());
                     if (currentStars > bestStarsBefore) {
                         starBonus = (currentStars - bestStarsBefore) * 200;
@@ -339,6 +381,10 @@ public class DockMasterGame extends ApplicationAdapter {
             progressManager.setVibrationEnabled(!progressManager.isVibrationEnabled());
             soundManager.play("click");
             vibrate(100);
+        }
+
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.H)) {
+            showHelp = !showHelp;
         }
 
         if (inputController.retryPressed && (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED)) {
@@ -440,7 +486,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         // Draw docks if NO texture exists
         if (!USE_TEXTURES || !textureManager.hasTexture("dock_plank")) {
-            dock.draw(shapeRenderer);
+            dock.draw(shapeRenderer, boat);
         }
 
         drawEnvironmentalIndicators(shapeRenderer, currentLevel);
@@ -632,6 +678,10 @@ public class DockMasterGame extends ApplicationAdapter {
             drawResultsBackdrop();
         }
 
+        if (showHelp) {
+            drawPanel(shapeRenderer, HUD_WIDTH / 2 - 150, HUD_HEIGHT / 2 - 100, 300, 200);
+        }
+
         shapeRenderer.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
 
@@ -672,7 +722,20 @@ public class DockMasterGame extends ApplicationAdapter {
         }
 
         if (inputController.debugToggled) drawDebugOverlay();
+        if (showHelp) drawHelpText();
         batch.end();
+    }
+
+    private void drawHelpText() {
+        font.setColor(Color.YELLOW);
+        font.draw(batch, "CONTROLS & HELP", HUD_WIDTH / 2 - 80, HUD_HEIGHT / 2 + 80);
+        font.setColor(Color.WHITE);
+        font.draw(batch, "W/FWD: Forward Throttle", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 + 50);
+        font.draw(batch, "S/REV: Reverse Throttle", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 + 30);
+        font.draw(batch, "A/D: Steer Left/Right", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 + 10);
+        font.draw(batch, "Dock slowly in green zone", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 - 20);
+        font.draw(batch, "Repair damage in Garage", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 - 40);
+        font.draw(batch, "Press H to close", HUD_WIDTH / 2 - 60, HUD_HEIGHT / 2 - 70);
     }
 
     private void drawHUDShapes() {
@@ -728,10 +791,19 @@ public class DockMasterGame extends ApplicationAdapter {
         LevelDefinition lvl = currentLevel;
         float alpha = Math.min(1.0f, introTimer);
         font.setColor(1, 1, 0, alpha); // Yellow
-        font.draw(batch, "DESTINATION: " + lvl.destinationName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 80);
+        font.draw(batch, "DESTINATION: " + lvl.destinationName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 105);
         font.setColor(1, 1, 1, alpha);
-        font.draw(batch, "LEVEL: " + lvl.levelName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 55);
-        font.draw(batch, "PAR TIME: " + (int)lvl.parTimeSeconds + "s", HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 30);
+        font.draw(batch, "LEVEL: " + lvl.levelName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 80);
+        font.draw(batch, "PAR TIME: " + (int)lvl.parTimeSeconds + "s", HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 55);
+
+        font.setColor(0, 1, 1, alpha); // Cyan
+        font.draw(batch, "OBJECTIVE: Dock safely without totaling.", HUD_WIDTH / 2 - 140, HUD_HEIGHT / 2 + 30);
+
+        if (lvl.windForce.len() > 0 || !lvl.currentZones.isEmpty()) {
+            font.setColor(1, 0.5f, 0, alpha); // Orange
+            font.draw(batch, "WARNING: WIND/CURRENT DETECTED", HUD_WIDTH / 2 - 140, HUD_HEIGHT / 2 + 5);
+        }
+
         font.setColor(Color.WHITE);
     }
 
@@ -878,8 +950,26 @@ public class DockMasterGame extends ApplicationAdapter {
 
     private void updateCamera(float delta) {
         float lerp = 4f;
-        worldCamera.position.x += (boat.x - worldCamera.position.x) * lerp * delta;
-        worldCamera.position.y += (boat.y - worldCamera.position.y) * lerp * delta;
+
+        // Target position based on boat + look ahead
+        float lookAheadFactor = 0.6f;
+        float targetX = boat.x + boat.velocity.x * lookAheadFactor;
+        float targetY = boat.y + boat.velocity.y * lookAheadFactor;
+
+        worldCamera.position.x += (targetX - worldCamera.position.x) * lerp * delta;
+        worldCamera.position.y += (targetY - worldCamera.position.y) * lerp * delta;
+
+        // Speed based zoom
+        float minZoom = 0.85f;
+        float maxZoom = 1.35f;
+        float speedNormalized = MathUtils.clamp(boat.velocity.len() / 350f, 0, 1);
+        float targetZoom = minZoom + (maxZoom - minZoom) * speedNormalized;
+
+        worldCamera.zoom += (targetZoom - worldCamera.zoom) * (lerp * 0.5f) * delta;
+
+        // Bounds clamping (example 2000x2000 world)
+        // For now let's just keep it centered.
+
         worldCamera.update();
     }
 

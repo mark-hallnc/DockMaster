@@ -99,7 +99,7 @@ public class Dock {
 
     private float glowTimer = 0;
 
-    public void draw(ShapeRenderer shape) {
+    public void draw(ShapeRenderer shape, Boat boat) {
         if (slipZone == null) return;
         glowTimer += Gdx.graphics.getDeltaTime();
 
@@ -151,7 +151,18 @@ public class Dock {
         } else {
             // Pulsing color based on boat status
             float pulse = (float)(Math.sin(glowTimer * 6f) + 1.0f) * 0.15f;
-            shape.setColor(1f, 1f, 0.3f, 0.2f + pulse);
+            Color zoneColor = new Color(1f, 1f, 0.3f, 0.2f + pulse);
+
+            if (slipZone.contains(boat.x, boat.y)) {
+                if (isInsideSlipZone(boat)) {
+                    zoneColor = new Color(0.5f, 1f, 0.5f, 0.4f + pulse); // Valid stabilizing
+                } else if (boat.velocity.len() >= 35f) {
+                    zoneColor = new Color(1f, 0.3f, 0.1f, 0.4f + pulse); // Too fast
+                } else {
+                    zoneColor = new Color(1f, 1f, 0f, 0.4f + pulse); // Bad angle
+                }
+            }
+            shape.setColor(zoneColor);
         }
         shape.rect(slipZone.x, slipZone.y, slipZone.width, slipZone.height);
 

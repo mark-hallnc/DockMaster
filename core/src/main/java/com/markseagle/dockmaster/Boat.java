@@ -42,6 +42,22 @@ public class Boat {
         updateBounds();
     }
 
+    public Vector2 getSternPos() {
+        float l = profile.length;
+        return new Vector2(
+            x - MathUtils.cosDeg(angle) * (l / 2),
+            y - MathUtils.sinDeg(angle) * (l / 2)
+        );
+    }
+
+    public Vector2 getBowPos() {
+        float l = profile.length;
+        return new Vector2(
+            x + MathUtils.cosDeg(angle) * (l / 2 + 10),
+            y + MathUtils.sinDeg(angle) * (l / 2 + 10)
+        );
+    }
+
     public void update(float delta, InputController input, LevelDefinition level) {
         if (!active) return;
         if (flashTimer > 0) flashTimer -= delta;
