@@ -11,18 +11,36 @@ public class TextureManager implements Disposable {
 
     public TextureManager() {
         // Boat textures
-        loadTexture("boat_skiff", "images/boats/skiff.png");
-        loadTexture("boat_runabout", "images/boats/runabout.png");
-        loadTexture("boat_pontoon", "images/boats/pontoon.png");
+        loadTextureOrGenerate("boat_skiff", "images/boats/skiff.png", "boat", "skiff");
+        loadTextureOrGenerate("boat_runabout", "images/boats/runabout.png", "boat", "runabout");
+        loadTextureOrGenerate("boat_pontoon", "images/boats/pontoon.png", "boat", "pontoon");
 
         // Dock textures
-        loadTexture("dock_plank", "images/docks/dock_plank.png");
+        loadTextureOrGenerate("dock_plank", "images/docks/dock_plank.png", "dock", null);
 
         // Effects/Decor
-        loadTexture("buoy", "images/effects/buoy.png");
+        loadTextureOrGenerate("buoy", "images/effects/buoy.png", "buoy", null);
 
         // Backgrounds
-        loadTexture("water_tile", "images/backgrounds/water_tile.png");
+        loadTextureOrGenerate("water_tile", "images/backgrounds/water_tile.png", "water", null);
+    }
+
+    private void loadTextureOrGenerate(String name, String path, String type, String subType) {
+        if (Gdx.files.internal(path).exists()) {
+            loadTexture(name, path);
+        } else {
+            Gdx.app.log("TextureManager", "Generating fallback for: " + path);
+            Texture generated = null;
+            if (type.equals("boat")) generated = PlaceholderTextureFactory.generateBoat(subType, 256, 128);
+            else if (type.equals("dock")) generated = PlaceholderTextureFactory.generateDock(256, 256);
+            else if (type.equals("water")) generated = PlaceholderTextureFactory.generateWater(512, 512);
+            else if (type.equals("buoy")) generated = PlaceholderTextureFactory.generateBuoy(64, 64);
+
+            if (generated != null) {
+                generated.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+                textures.put(name, generated);
+            }
+        }
     }
 
     private void loadTexture(String name, String path) {

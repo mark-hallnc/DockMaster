@@ -26,8 +26,8 @@ public class InputController {
     private final Rectangle btnSound, btnVibrate;
 
     // Grid buttons
-    private final List<Rectangle> levelButtons = new ArrayList<>();
-    private final List<Rectangle> boatButtons = new ArrayList<>();
+    public final List<Rectangle> levelButtons = new ArrayList<>();
+    public final List<Rectangle> boatButtons = new ArrayList<>();
     public int selectedLevelIndex = -1;
     public int selectedBoatIndex = -1;
 

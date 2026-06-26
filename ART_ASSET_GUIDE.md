@@ -1,6 +1,9 @@
 # DockMaster Art Asset Guide
 
-This guide explains how to add custom graphics to DockMaster. The game uses a fallback system: if a PNG file is missing, it will automatically render using arcade-style shapes.
+This guide explains how to add custom graphics to DockMaster. The game uses a fallback system: if a PNG file is missing, it will automatically render using generated placeholder textures (via Pixmap) or arcade-style shapes.
+
+## Starter Assets
+The project now includes a `PlaceholderTextureFactory` that generates basic textures at runtime if real files are missing. You can replace these by adding your own PNGs to the folders listed below.
 
 ## Folder Structure
 All images must be placed in `core/assets/images/` (or `assets/images/` depending on your IDE setup).
@@ -8,15 +11,15 @@ All images must be placed in `core/assets/images/` (or `assets/images/` dependin
 ```
 assets/images/
   ├── boats/
-  │   ├── skiff.png
-  │   ├── runabout.png
-  │   └── pontoon.png
+  │   ├── skiff.png        (Small white hull)
+  │   ├── runabout.png     (Cyan sleeker hull)
+  │   └── pontoon.png      (Grey wide deck)
   ├── docks/
-  │   └── dock_plank.png
+  │   └── dock_plank.png   (Brown planks)
   ├── effects/
-  │   └── buoy.png
+  │   └── buoy.png         (Red/White marker)
   └── backgrounds/
-      └── water_tile.png
+      └── water_tile.png   (Blue tiled water)
 ```
 
 ## Boat Sprites

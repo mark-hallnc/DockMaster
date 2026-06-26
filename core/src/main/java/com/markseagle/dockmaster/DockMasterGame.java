@@ -5,13 +5,16 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import java.util.List;
 
 public class DockMasterGame extends ApplicationAdapter {
     public enum GameState { TITLE, LEVEL_SELECT, BOAT_SELECT, GARAGE, SETTINGS, TUTORIAL, PLAYING, DOCKED, FAILED }
@@ -63,6 +66,8 @@ public class DockMasterGame extends ApplicationAdapter {
     private static final float WORLD_HEIGHT = 600;
     private static final float HUD_WIDTH = 800;
     private static final float HUD_HEIGHT = 600;
+
+    private static final boolean USE_TEXTURES = true;
 
     @Override
     public void create() {
@@ -416,7 +421,9 @@ public class DockMasterGame extends ApplicationAdapter {
 
         // --- PASS 1: BACKGROUND SPRITES ---
         batch.begin();
-        drawTexturedWater(batch);
+        if (USE_TEXTURES) {
+            drawTexturedWater(batch);
+        }
         batch.end();
 
         // --- PASS 2: SHAPES (Fallbacks and effects) ---
@@ -425,18 +432,20 @@ public class DockMasterGame extends ApplicationAdapter {
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         // Draw water shapes over background if needed, or if no background
-        if (!textureManager.hasTexture("water_tile")) {
+        if (!USE_TEXTURES || !textureManager.hasTexture("water_tile")) {
             drawStyledWater(shapeRenderer);
+        } else {
+            drawWaterDetails(shapeRenderer); // Shimmer over texture
         }
 
         // Draw docks if NO texture exists
-        if (!textureManager.hasTexture("dock_plank")) {
+        if (!USE_TEXTURES || !textureManager.hasTexture("dock_plank")) {
             dock.draw(shapeRenderer);
         }
 
         drawEnvironmentalIndicators(shapeRenderer, currentLevel);
 
-        if (!textureManager.hasTexture("buoy")) {
+        if (!USE_TEXTURES || !textureManager.hasTexture("buoy")) {
             drawWaterDetails(shapeRenderer);
         }
 
@@ -444,7 +453,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         // Draw boat if NO texture exists
         String boatTexKey = "boat_" + boat.profile.id;
-        if (!textureManager.hasTexture(boatTexKey)) {
+        if (!USE_TEXTURES || !textureManager.hasTexture(boatTexKey)) {
             boat.draw(shapeRenderer);
         }
 
@@ -460,14 +469,16 @@ public class DockMasterGame extends ApplicationAdapter {
 
         // --- PASS 3: WORLD SPRITES (Textured objects) ---
         batch.begin();
-        if (textureManager.hasTexture("dock_plank")) {
-            drawTexturedDocks(batch);
-        }
+        if (USE_TEXTURES) {
+            if (textureManager.hasTexture("dock_plank")) {
+                drawTexturedDocks(batch);
+            }
 
-        drawTexturedDecor(batch);
+            drawTexturedDecor(batch);
 
-        if (textureManager.hasTexture(boatTexKey)) {
-            drawTexturedBoat(batch, boatTexKey);
+            if (textureManager.hasTexture(boatTexKey)) {
+                drawTexturedBoat(batch, boatTexKey);
+            }
         }
 
         floatingText.draw(batch, font);
@@ -543,6 +554,10 @@ public class DockMasterGame extends ApplicationAdapter {
         shape.setColor(0.1f, 0.3f, 0.5f, 1f);
         shape.rect(worldCamera.position.x - WORLD_WIDTH, worldCamera.position.y - WORLD_HEIGHT, WORLD_WIDTH * 2, WORLD_HEIGHT * 2);
 
+        drawWaterDetails(shape);
+    }
+
+    private void drawWaterDetails(ShapeRenderer shape) {
         // Animated ripples
         shape.setColor(1, 1, 1, 0.05f);
         for (int i = 0; i < 10; i++) {
@@ -571,6 +586,16 @@ public class DockMasterGame extends ApplicationAdapter {
         shapeRenderer.setProjectionMatrix(hudCamera.combined);
         batch.setProjectionMatrix(hudCamera.combined);
 
+        // --- PASS 0: BACKGROUND SPRITES (for menus) ---
+        if (USE_TEXTURES && (state == GameState.TITLE || state == GameState.LEVEL_SELECT || state == GameState.BOAT_SELECT)) {
+            batch.begin();
+            Texture water = textureManager.getTexture("water_tile");
+            if (water != null) {
+                batch.draw(water, 0, 0, HUD_WIDTH, HUD_HEIGHT, 0, 0, (int)(HUD_WIDTH/water.getWidth()), (int)(HUD_HEIGHT/water.getHeight()));
+            }
+            batch.end();
+        }
+
         // --- PASS 1: SHAPES ---
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
@@ -579,11 +604,15 @@ public class DockMasterGame extends ApplicationAdapter {
         inputController.drawShapes(shapeRenderer, state, progressManager.getSelectedBoatId(), boatCatalog, boatTotaled);
 
         if (state == GameState.TITLE) {
-            drawStyledWater(shapeRenderer);
+            if (!USE_TEXTURES || !textureManager.hasTexture("water_tile")) {
+                drawStyledWater(shapeRenderer);
+            }
             shapeRenderer.setColor(0, 0, 0.2f, 0.4f);
             shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
         } else if (state == GameState.LEVEL_SELECT || state == GameState.BOAT_SELECT) {
-            drawStyledWater(shapeRenderer);
+            if (!USE_TEXTURES || !textureManager.hasTexture("water_tile")) {
+                drawStyledWater(shapeRenderer);
+            }
             shapeRenderer.setColor(0, 0, 0, 0.4f);
             shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
         } else if (state == GameState.GARAGE) {
@@ -616,6 +645,7 @@ public class DockMasterGame extends ApplicationAdapter {
             drawLevelSelectText();
         } else if (state == GameState.BOAT_SELECT) {
             drawBoatSelectText();
+            if (USE_TEXTURES) drawBoatPreviews();
         } else if (state == GameState.GARAGE) {
             drawGarageText();
         } else if (state == GameState.SETTINGS) {
@@ -761,6 +791,21 @@ public class DockMasterGame extends ApplicationAdapter {
     private void drawBoatSelectText() {
         font.setColor(Color.YELLOW);
         font.draw(batch, "SELECT BOAT", HUD_WIDTH / 2 - 80, HUD_HEIGHT - 40);
+    }
+
+    private void drawBoatPreviews() {
+        List<BoatDefinition> boats = boatCatalog.getBoats();
+        List<Rectangle> buttons = inputController.boatButtons;
+        for (int i = 0; i < boats.size(); i++) {
+            BoatDefinition b = boats.get(i);
+            Texture tex = textureManager.getTexture("boat_" + b.id);
+            if (tex != null) {
+                Rectangle r = buttons.get(i);
+                // Draw a mini preview centered in the right side of the card
+                float size = 60;
+                batch.draw(tex, r.x + r.width - size - 20, r.y + (r.height - size/2) / 2, size, size/2);
+            }
+        }
     }
 
     private void drawGarageText() {
