@@ -272,7 +272,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         ScreenUtils.clear(0.1f, 0.3f, 0.5f, 1f);
 
-        if (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED) {
+        if (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED || state == GameState.TUTORIAL) {
             renderWorld();
         }
         renderHud(boatTotaled);
@@ -465,57 +465,79 @@ public class DockMasterGame extends ApplicationAdapter {
         }
     }
 
+    /**
+     * Renders HUD and Menus in two passes to avoid mixing ShapeRenderer and SpriteBatch.
+     * Pass 1: Shapes only.
+     * Pass 2: Text only.
+     */
     private void renderHud(boolean boatTotaled) {
         hudViewport.apply();
         shapeRenderer.setProjectionMatrix(hudCamera.combined);
         batch.setProjectionMatrix(hudCamera.combined);
 
+        // --- PASS 1: SHAPES ---
         Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        inputController.drawShapes(shapeRenderer, state, progressManager.getSelectedBoatId(), boatCatalog, boatTotaled);
-        if (state == GameState.DOCKED || state == GameState.FAILED) drawResultsBackdrop();
 
-        // These methods might open/close batches and shapes.
-        // We'll keep shapeRenderer.begin() open and let them manage it if needed.
-        if (state == GameState.TITLE) drawTitleScreen();
-        else if (state == GameState.LEVEL_SELECT) drawLevelSelectScreen();
-        else if (state == GameState.BOAT_SELECT) drawBoatSelectScreen();
-        else if (state == GameState.GARAGE) drawGarageScreen();
-        else if (state == GameState.SETTINGS) {
-            shapeRenderer.end();
-            batch.begin();
-            drawSettingsScreen();
-            batch.end();
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        inputController.drawShapes(shapeRenderer, state, progressManager.getSelectedBoatId(), boatCatalog, boatTotaled);
+
+        if (state == GameState.TITLE) {
+            drawStyledWater(shapeRenderer);
+            shapeRenderer.setColor(0, 0, 0.2f, 0.4f);
+            shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
+        } else if (state == GameState.LEVEL_SELECT || state == GameState.BOAT_SELECT) {
+            drawStyledWater(shapeRenderer);
+            shapeRenderer.setColor(0, 0, 0, 0.4f);
+            shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
+        } else if (state == GameState.GARAGE) {
+            drawPanel(shapeRenderer, 50, 100, 700, 400);
+        } else if (state == GameState.SETTINGS) {
+            drawPanel(shapeRenderer, HUD_WIDTH / 2 - 200, 100, 400, 350);
         } else if (state == GameState.TUTORIAL) {
-            shapeRenderer.end();
-            drawHUDText();
-            batch.begin();
-            tutorialManager.draw(batch, font, HUD_WIDTH, HUD_HEIGHT);
+            drawHUDShapes();
             if (tutorialManager.getCurrentStep() == TutorialManager.Step.COMPLETE) {
-                drawTutorialCompletePopup();
+                drawTutorialCompleteShapes();
             }
-            batch.end();
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         } else if (state == GameState.PLAYING) {
-            shapeRenderer.end();
-            drawHUDText();
-            batch.begin();
-            if (introTimer > 0) drawLevelIntro();
-            drawDockingGuidance();
-            batch.end();
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            drawHUDShapes();
+            if (introTimer > 0) drawLevelIntroShapes();
         } else if (state == GameState.DOCKED || state == GameState.FAILED) {
-            shapeRenderer.end();
-            drawHUDText();
-            drawResultsText();
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            drawHUDShapes();
+            drawResultsBackdrop();
         }
 
         shapeRenderer.end();
+        Gdx.gl.glDisable(GL20.GL_BLEND);
 
+        // --- PASS 2: TEXT ---
         batch.begin();
         inputController.drawLabels(batch, font, state, levelManager, progressManager, boatCatalog, boatTotaled);
+
+        if (state == GameState.TITLE) {
+            drawTitleText();
+        } else if (state == GameState.LEVEL_SELECT) {
+            drawLevelSelectText();
+        } else if (state == GameState.BOAT_SELECT) {
+            drawBoatSelectText();
+        } else if (state == GameState.GARAGE) {
+            drawGarageText();
+        } else if (state == GameState.SETTINGS) {
+            drawSettingsText();
+        } else if (state == GameState.TUTORIAL) {
+            drawHUDText();
+            tutorialManager.draw(batch, font, HUD_WIDTH, HUD_HEIGHT);
+            if (tutorialManager.getCurrentStep() == TutorialManager.Step.COMPLETE) {
+                drawTutorialCompleteText();
+            }
+        } else if (state == GameState.PLAYING) {
+            drawHUDText();
+            if (introTimer > 0) drawLevelIntroText();
+            drawDockingGuidanceText();
+        } else if (state == GameState.DOCKED || state == GameState.FAILED) {
+            drawHUDText();
+            drawResultsText();
+        }
 
         if (statusTimer > 0) {
             font.setColor(Color.YELLOW);
@@ -527,66 +549,67 @@ public class DockMasterGame extends ApplicationAdapter {
         batch.end();
     }
 
-    private void drawTutorialCompletePopup() {
+    private void drawHUDShapes() {
+        drawPanel(shapeRenderer, 10, HUD_HEIGHT - 170, 200, 160);
+    }
+
+    private void drawHUDText() {
+        LevelDefinition lvl = currentLevel;
+        font.setColor(Color.WHITE);
+        float top = HUD_HEIGHT - 20;
+        font.draw(batch, "Boat: " + boat.profile.displayName, 20, top);
+        font.draw(batch, "Dest: " + lvl.destinationName, 20, top - 20);
+        font.draw(batch, "Cash: $" + progressManager.getPlayerCash(), 20, top - 40);
+        font.draw(batch, "Speed: " + (int)boat.velocity.len(), 20, top - 60);
+
+        Color dmgColor = boat.damage > 50 ? Color.RED : (boat.damage > 20 ? Color.YELLOW : Color.WHITE);
+        font.setColor(dmgColor);
+        font.draw(batch, "Damage: " + (int)boat.damage + "%", 20, top - 80);
+
+        font.setColor(Color.WHITE);
+        font.draw(batch, "Boat Val: $" + boat.boatValue, 20, top - 100);
+        font.draw(batch, "Time: " + (int)levelTimer + "s", 20, top - 120);
+    }
+
+    private void drawTutorialCompleteShapes() {
+        drawPanel(shapeRenderer, HUD_WIDTH / 2 - 180, HUD_HEIGHT / 2 - 100, 360, 200);
+    }
+
+    private void drawTutorialCompleteText() {
         float centerX = HUD_WIDTH / 2;
         float centerY = HUD_HEIGHT / 2;
-
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        drawPanel(shapeRenderer, centerX - 180, centerY - 100, 360, 200);
-        shapeRenderer.end();
-
-        batch.begin();
         font.setColor(Color.LIME);
         font.draw(batch, "TRAINING COMPLETE!", centerX - 100, centerY + 60);
         font.setColor(Color.WHITE);
         font.draw(batch, "Press START to begin Level 1", centerX - 120, centerY + 10);
         font.draw(batch, "or TITLE to exit.", centerX - 80, centerY - 20);
-        batch.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
     }
 
-    private void drawSettingsScreen() {
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        drawPanel(shapeRenderer, HUD_WIDTH / 2 - 200, 100, 400, 350);
-        shapeRenderer.end();
-
-        batch.begin();
+    private void drawSettingsText() {
         font.setColor(Color.YELLOW);
         font.draw(batch, "SETTINGS", HUD_WIDTH / 2 - 40, HUD_HEIGHT - 40);
         font.setColor(Color.WHITE);
         font.draw(batch, "Adjust your experience preferences.", HUD_WIDTH / 2 - 140, HUD_HEIGHT - 80);
-        batch.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
     }
 
-    private void drawLevelIntro() {
-        LevelDefinition lvl = currentLevel;
+    private void drawLevelIntroShapes() {
         float alpha = Math.min(1.0f, introTimer);
-
-        // Draw background bar
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
         shapeRenderer.setColor(0, 0, 0, alpha * 0.5f);
         shapeRenderer.rect(0, HUD_HEIGHT / 2 - 20, HUD_WIDTH, 120);
-        shapeRenderer.end();
+    }
 
-        batch.begin();
+    private void drawLevelIntroText() {
+        LevelDefinition lvl = currentLevel;
+        float alpha = Math.min(1.0f, introTimer);
         font.setColor(1, 1, 0, alpha); // Yellow
         font.draw(batch, "DESTINATION: " + lvl.destinationName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 80);
         font.setColor(1, 1, 1, alpha);
         font.draw(batch, "LEVEL: " + lvl.levelName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 55);
         font.draw(batch, "PAR TIME: " + (int)lvl.parTimeSeconds + "s", HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 30);
         font.setColor(Color.WHITE);
-        batch.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
     }
 
-    private void drawDockingGuidance() {
+    private void drawDockingGuidanceText() {
         float speed = boat.velocity.len();
         if (dock.isInsideSlipZone(boat)) {
             font.setColor(Color.LIME);
@@ -615,18 +638,7 @@ public class DockMasterGame extends ApplicationAdapter {
         font.setColor(Color.WHITE);
     }
 
-    private void drawTitleScreen() {
-        // Draw stylized background directly in hud pass
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        drawStyledWater(shapeRenderer);
-        // Overlay a dark tint
-        shapeRenderer.setColor(0, 0, 0.2f, 0.4f);
-        shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
-        shapeRenderer.end();
-
-        batch.begin();
+    private void drawTitleText() {
         titleFont.setColor(Color.YELLOW);
         titleFont.draw(batch, "DockMaster", HUD_WIDTH / 2 - 180, HUD_HEIGHT - 60);
         font.setColor(Color.WHITE);
@@ -641,57 +653,26 @@ public class DockMasterGame extends ApplicationAdapter {
             font.draw(batch, ">>> NEW PLAYER? TRY TRAINING <<<", HUD_WIDTH / 2 - 130, 295);
             font.setColor(Color.WHITE);
         }
-        batch.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
     }
 
-    private void drawLevelSelectScreen() {
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        drawStyledWater(shapeRenderer);
-        shapeRenderer.setColor(0, 0, 0, 0.4f);
-        shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
-        shapeRenderer.end();
-
-        batch.begin();
+    private void drawLevelSelectText() {
         font.setColor(Color.YELLOW);
         font.draw(batch, "SELECT LEVEL", HUD_WIDTH / 2 - 80, HUD_HEIGHT - 40);
         font.setColor(Color.WHITE);
         font.draw(batch, "Total Stars: " + progressManager.getTotalStars(levelManager.getLevels().size()), 20, 40);
-        batch.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
     }
 
-    private void drawBoatSelectScreen() {
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        drawStyledWater(shapeRenderer);
-        shapeRenderer.setColor(0, 0, 0, 0.4f);
-        shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
-        shapeRenderer.end();
-
-        batch.begin();
+    private void drawBoatSelectText() {
         font.setColor(Color.YELLOW);
         font.draw(batch, "SELECT BOAT", HUD_WIDTH / 2 - 80, HUD_HEIGHT - 40);
-        batch.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
     }
 
-    private void drawGarageScreen() {
+    private void drawGarageText() {
         BoatDefinition profile = boatCatalog.getBoatById(progressManager.getSelectedBoatId());
         float damage = progressManager.getBoatDamage(profile.id);
         long value = progressManager.getBoatValue(profile.id, profile.value);
         int cost = (int)(damage * 20);
 
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        drawPanel(shapeRenderer, 50, 100, 700, 400);
-        shapeRenderer.end();
-
-        batch.begin();
         font.setColor(Color.YELLOW);
         font.draw(batch, "GARAGE", HUD_WIDTH / 2 - 40, HUD_HEIGHT - 40);
 
@@ -720,8 +701,6 @@ public class DockMasterGame extends ApplicationAdapter {
             font.setColor(Color.LIME);
             font.draw(batch, "NO REPAIRS NEEDED", 450, 330);
         }
-        batch.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
     }
 
     private void drawEnvironmentalIndicators(ShapeRenderer shape, LevelDefinition level) {
@@ -779,35 +758,6 @@ public class DockMasterGame extends ApplicationAdapter {
         }
     }
 
-    private void drawHUDText() {
-        LevelDefinition lvl = currentLevel;
-
-        // Stats Panel
-        shapeRenderer.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        drawPanel(shapeRenderer, 10, HUD_HEIGHT - 170, 200, 160);
-        shapeRenderer.end();
-
-        batch.begin();
-        font.setColor(Color.WHITE);
-        float top = HUD_HEIGHT - 20;
-        font.draw(batch, "Boat: " + boat.profile.displayName, 20, top);
-        font.draw(batch, "Dest: " + lvl.destinationName, 20, top - 20);
-        font.draw(batch, "Cash: $" + progressManager.getPlayerCash(), 20, top - 40);
-        font.draw(batch, "Speed: " + (int)boat.velocity.len(), 20, top - 60);
-
-        Color dmgColor = boat.damage > 50 ? Color.RED : (boat.damage > 20 ? Color.YELLOW : Color.WHITE);
-        font.setColor(dmgColor);
-        font.draw(batch, "Damage: " + (int)boat.damage + "%", 20, top - 80);
-
-        font.setColor(Color.WHITE);
-        font.draw(batch, "Boat Val: $" + boat.boatValue, 20, top - 100);
-        font.draw(batch, "Time: " + (int)levelTimer + "s", 20, top - 120);
-        batch.end();
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-    }
-
     private void drawPanel(ShapeRenderer shape, float x, float y, float w, float h) {
         // Shadow
         shape.setColor(0, 0, 0, 0.4f);
@@ -834,7 +784,6 @@ public class DockMasterGame extends ApplicationAdapter {
         float centerX = HUD_WIDTH / 2 - 120;
         float centerY = HUD_HEIGHT / 2 + 130;
 
-        batch.begin();
         if (state == GameState.DOCKED) {
             font.getData().setScale(1.8f);
             font.setColor(Color.LIME);
@@ -869,7 +818,6 @@ public class DockMasterGame extends ApplicationAdapter {
                 font.draw(batch, "Try again to dock safely.", centerX, centerY + 30);
             }
         }
-        batch.end();
     }
 
     private void drawDebugOverlay() {
