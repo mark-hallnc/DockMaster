@@ -36,6 +36,7 @@ public class DockMasterGame extends ApplicationAdapter {
     private BoatCatalog boatCatalog;
     private SoundManager soundManager;
     private TutorialManager tutorialManager;
+    private TextureManager textureManager;
 
     private float levelTimer = 0;
     private int currentPayout = 0;
@@ -83,6 +84,7 @@ public class DockMasterGame extends ApplicationAdapter {
         progressManager = new ProgressManager();
         boatCatalog = new BoatCatalog();
         soundManager = new SoundManager(progressManager);
+        textureManager = new TextureManager();
 
         dock = new Dock();
         wakeTrail = new WakeTrail();
@@ -412,15 +414,39 @@ public class DockMasterGame extends ApplicationAdapter {
         shapeRenderer.setProjectionMatrix(worldCamera.combined);
         batch.setProjectionMatrix(worldCamera.combined);
 
+        // --- PASS 1: BACKGROUND SPRITES ---
+        batch.begin();
+        drawTexturedWater(batch);
+        batch.end();
+
+        // --- PASS 2: SHAPES (Fallbacks and effects) ---
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        drawStyledWater(shapeRenderer);
-        dock.draw(shapeRenderer);
+
+        // Draw water shapes over background if needed, or if no background
+        if (!textureManager.hasTexture("water_tile")) {
+            drawStyledWater(shapeRenderer);
+        }
+
+        // Draw docks if NO texture exists
+        if (!textureManager.hasTexture("dock_plank")) {
+            dock.draw(shapeRenderer);
+        }
+
         drawEnvironmentalIndicators(shapeRenderer, currentLevel);
+
+        if (!textureManager.hasTexture("buoy")) {
+            drawWaterDetails(shapeRenderer);
+        }
+
         wakeTrail.draw(shapeRenderer);
-        boat.draw(shapeRenderer);
+
+        // Draw boat if NO texture exists
+        String boatTexKey = "boat_" + boat.profile.id;
+        if (!textureManager.hasTexture(boatTexKey)) {
+            boat.draw(shapeRenderer);
+        }
 
         if (inputController.debugToggled && dock.slipZone != null) {
             shapeRenderer.setColor(Color.RED);
@@ -430,16 +456,86 @@ public class DockMasterGame extends ApplicationAdapter {
             shapeRenderer.end();
             shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         }
-
         shapeRenderer.end();
 
+        // --- PASS 3: WORLD SPRITES (Textured objects) ---
         batch.begin();
+        if (textureManager.hasTexture("dock_plank")) {
+            drawTexturedDocks(batch);
+        }
+
+        drawTexturedDecor(batch);
+
+        if (textureManager.hasTexture(boatTexKey)) {
+            drawTexturedBoat(batch, boatTexKey);
+        }
+
         floatingText.draw(batch, font);
         batch.end();
 
         Gdx.gl.glDisable(GL20.GL_BLEND);
         worldCamera.position.sub(sx, sy, 0);
         worldCamera.update();
+    }
+
+    private void drawTexturedWater(SpriteBatch batch) {
+        Texture water = textureManager.getTexture("water_tile");
+        if (water == null) return;
+
+        // Draw large enough to cover the view and support some camera movement
+        float startX = worldCamera.position.x - WORLD_WIDTH;
+        float startY = worldCamera.position.y - WORLD_HEIGHT;
+        float width = WORLD_WIDTH * 2;
+        float height = WORLD_HEIGHT * 2;
+
+        batch.draw(water, startX, startY, width, height, 0, 0, (int)(width/water.getWidth()), (int)(height/water.getHeight()));
+    }
+
+    private void drawTexturedDocks(SpriteBatch batch) {
+        Texture plank = textureManager.getTexture("dock_plank");
+        if (plank == null) return;
+
+        for (com.badlogic.gdx.math.Polygon p : dock.collisionPolys) {
+            float x = p.getX();
+            float y = p.getY();
+            float w = p.getVertices()[2];
+            float h = p.getVertices()[5];
+
+            // Simple stretching for now
+            batch.draw(plank, x, y, w, h);
+        }
+    }
+
+    private void drawTexturedDecor(SpriteBatch batch) {
+        Texture buoy = textureManager.getTexture("buoy");
+        if (buoy == null) return;
+
+        // Draw at standard locations from drawWaterDetails
+        batch.draw(buoy, 100-16, 100-16, 32, 32);
+        batch.draw(buoy, 700-16, 500-16, 32, 32);
+        batch.draw(buoy, 400-16, 300-16, 32, 32);
+    }
+
+    private void drawTexturedBoat(SpriteBatch batch, String texKey) {
+        Texture tex = textureManager.getTexture(texKey);
+        if (tex == null) return;
+
+        float l = boat.profile.length;
+        float w = boat.profile.width;
+
+        // In our ShapeRenderer, boat points right at 0 degrees, and 90 is up.
+        // LibGDX draw() with rotation assumes the texture points right at 0 degrees.
+        // So this should align perfectly if the PNG points right.
+        batch.draw(tex,
+            boat.x - l/2, boat.y - w/2, // position
+            l/2, w/2,                   // origin for rotation
+            l, w,                       // size
+            1f, 1f,                     // scale
+            boat.angle,                 // rotation
+            0, 0,                       // srcX, srcY
+            tex.getWidth(), tex.getHeight(), // srcW, srcH
+            false, false                // flip
+        );
     }
 
     private void drawStyledWater(ShapeRenderer shape) {
@@ -838,6 +934,8 @@ public class DockMasterGame extends ApplicationAdapter {
 
         font.draw(batch, "Motor Vol: " + String.format("%.2f", soundManager.getMotorVolume()), x, y - 160);
         font.draw(batch, "Motor Pitch: " + String.format("%.2f", soundManager.getMotorPitch()), x, y - 180);
+
+        font.draw(batch, "Tex Mode: " + (textureManager.hasTexture("boat_" + boat.profile.id) ? "ON" : "OFF (Shape)"), x, y - 200);
     }
 
     @Override
@@ -858,5 +956,6 @@ public class DockMasterGame extends ApplicationAdapter {
         font.dispose();
         titleFont.dispose();
         soundManager.dispose();
+        textureManager.dispose();
     }
 }
