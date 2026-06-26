@@ -3,6 +3,7 @@ package com.markseagle.dockmaster;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
@@ -244,7 +245,7 @@ public class InputController {
         }
     }
 
-    public void drawLabels(SpriteBatch batch, BitmapFont font, DockMasterGame.GameState state, LevelManager lm, ProgressManager pm, BoatCatalog bc, boolean boatTotaled) {
+    public void drawLabels(SpriteBatch batch, BitmapFont font, DockMasterGame.GameState state, LevelManager lm, ProgressManager pm, BoatCatalog bc, boolean boatTotaled, TextureManager tm) {
         font.setColor(Color.WHITE);
         if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
             drawCenteredLabel(batch, font, "LEFT", btnLeft);
@@ -293,7 +294,15 @@ public class InputController {
 
                 int stars = pm.getBestStars(i);
                 font.setColor(Color.YELLOW);
-                font.draw(batch, getStarString(stars), r.x + 140, r.y + 40);
+
+                Texture starFilled = tm.getTexture("ui_star_filled");
+                if (starFilled != null) {
+                    for (int s = 0; s < 3; s++) {
+                        if (s < stars) batch.draw(starFilled, r.x + 140 + s * 22, r.y + 25, 20, 20);
+                    }
+                } else {
+                    font.draw(batch, getStarString(stars), r.x + 140, r.y + 40);
+                }
 
                 if (!unlocked) {
                     font.setColor(Color.RED);

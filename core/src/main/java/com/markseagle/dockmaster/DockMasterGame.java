@@ -587,25 +587,81 @@ public class DockMasterGame extends ApplicationAdapter {
         Texture plank = textureManager.getTexture("dock_plank");
         if (plank == null) return;
 
+        Texture piling = textureManager.getTexture("dock_piling");
+        Texture bumper = textureManager.getTexture("dock_tire_bumper");
+        Texture cleat = textureManager.getTexture("dock_cleat");
+
         for (com.badlogic.gdx.math.Polygon p : dock.collisionPolys) {
             float x = p.getX();
             float y = p.getY();
             float w = p.getVertices()[2];
             float h = p.getVertices()[5];
 
-            // Simple stretching for now
+            // 1. Base Plank Texture
             batch.draw(plank, x, y, w, h);
+
+            // 2. Optional Detail: Pilings at corners
+            if (piling != null) {
+                float s = 16f;
+                batch.draw(piling, x - s/2, y - s/2, s, s);
+                batch.draw(piling, x + w - s/2, y - s/2, s, s);
+                batch.draw(piling, x - s/2, y + h - s/2, s, s);
+                batch.draw(piling, x + w - s/2, y + h - s/2, s, s);
+            }
+
+            // 3. Optional Detail: Tire Bumpers along longest sides
+            if (bumper != null) {
+                float bs = 24f;
+                if (w > h) {
+                    for (float bx = x + 30; bx < x + w - 30; bx += 60) {
+                        batch.draw(bumper, bx - bs/2, y - bs/4, bs, bs);
+                        batch.draw(bumper, bx - bs/2, y + h - bs*0.75f, bs, bs);
+                    }
+                } else {
+                    for (float by = y + 30; by < y + h - 30; by += 60) {
+                        batch.draw(bumper, x - bs/4, by - bs/2, bs, bs);
+                        batch.draw(bumper, x + w - bs*0.75f, by - bs/2, bs, bs);
+                    }
+                }
+            }
+
+            // 4. Optional Detail: Cleats
+            if (cleat != null && w > 40 && h > 40) {
+                batch.draw(cleat, x + w/2 - 8, y + h/2 - 8, 16, 16);
+            }
         }
     }
 
     private void drawTexturedDecor(SpriteBatch batch) {
         Texture buoy = textureManager.getTexture("buoy");
-        if (buoy == null) return;
+        Texture markerGreen = textureManager.getTexture("channel_marker_green");
+        Texture markerRed = textureManager.getTexture("channel_marker_red");
+        Texture pump = textureManager.getTexture("fuel_pump");
+        Texture umbrella = textureManager.getTexture("umbrella");
 
-        // Draw at standard locations from drawWaterDetails
-        batch.draw(buoy, 100-16, 100-16, 32, 32);
-        batch.draw(buoy, 700-16, 500-16, 32, 32);
-        batch.draw(buoy, 400-16, 300-16, 32, 32);
+        // Basic Buoys
+        if (buoy != null) {
+            batch.draw(buoy, 100-16, 100-16, 32, 32);
+            batch.draw(buoy, 700-16, 500-16, 32, 32);
+        }
+
+        // Destination / Level Specific Decor
+        String dest = currentLevel.destinationName;
+        if (dest.equals("Lake Resort")) {
+            if (umbrella != null) {
+                batch.draw(umbrella, 50, 50, 48, 48);
+                batch.draw(umbrella, 700, 40, 48, 48);
+            }
+        } else if (dest.equals("Coastal Harbor")) {
+            if (markerGreen != null) batch.draw(markerGreen, 300, 100, 32, 32);
+            if (markerRed != null) batch.draw(markerRed, 350, 100, 32, 32);
+        }
+
+        // Fuel Pump for Fuel Levels
+        if (pump != null && currentLevel.levelName.toLowerCase().contains("fuel")) {
+            // Find a dock to place it near, or just a fixed spot for now
+            batch.draw(pump, 310, 460, 32, 32);
+        }
     }
 
     private void drawTexturedBoat(SpriteBatch batch, String texKey) {
@@ -722,7 +778,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         // --- PASS 2: TEXT ---
         batch.begin();
-        inputController.drawLabels(batch, font, state, levelManager, progressManager, boatCatalog, boatTotaled);
+        inputController.drawLabels(batch, font, state, levelManager, progressManager, boatCatalog, boatTotaled, textureManager);
 
         if (state == GameState.TITLE) {
             drawTitleText();
@@ -779,16 +835,28 @@ public class DockMasterGame extends ApplicationAdapter {
 
     private void drawHUDText() {
         LevelDefinition lvl = currentLevel;
+
+        Texture cashIcon = textureManager.getTexture("ui_cash");
+        Texture damageIcon = textureManager.getTexture("ui_damage");
+
         font.setColor(Color.WHITE);
         float top = HUD_HEIGHT - 20;
         font.draw(batch, "Boat: " + boat.profile.displayName, 20, top);
         font.draw(batch, "Dest: " + lvl.destinationName, 20, top - 20);
-        font.draw(batch, "Cash: $" + progressManager.getPlayerCash(), 20, top - 40);
+
+        if (cashIcon != null) batch.draw(cashIcon, 20, top - 55, 16, 16);
+        font.draw(batch, "Cash: $" + progressManager.getPlayerCash(), cashIcon != null ? 40 : 20, top - 40);
+
         font.draw(batch, "Speed: " + (int)boat.velocity.len(), 20, top - 60);
 
         Color dmgColor = boat.damage > 50 ? Color.RED : (boat.damage > 20 ? Color.YELLOW : Color.WHITE);
         font.setColor(dmgColor);
-        font.draw(batch, "Damage: " + (int)boat.damage + "%", 20, top - 80);
+        if (damageIcon != null) {
+            batch.setColor(dmgColor);
+            batch.draw(damageIcon, 20, top - 95, 16, 16);
+            batch.setColor(Color.WHITE);
+        }
+        font.draw(batch, "Damage: " + (int)boat.damage + "%", damageIcon != null ? 40 : 20, top - 80);
 
         font.setColor(Color.WHITE);
         font.draw(batch, "Boat Val: $" + boat.boatValue, 20, top - 100);
@@ -1058,6 +1126,9 @@ public class DockMasterGame extends ApplicationAdapter {
         float centerX = HUD_WIDTH / 2 - 120;
         float centerY = HUD_HEIGHT / 2 + 130;
 
+        Texture starFilled = textureManager.getTexture("ui_star_filled");
+        Texture starEmpty = textureManager.getTexture("ui_star_empty");
+
         if (state == GameState.DOCKED) {
             font.getData().setScale(1.8f);
             font.setColor(Color.LIME);
@@ -1065,7 +1136,14 @@ public class DockMasterGame extends ApplicationAdapter {
             font.getData().setScale(1.2f);
 
             font.setColor(Color.YELLOW);
-            font.draw(batch, "RATING: " + inputController.getStarString(currentStars), centerX, centerY + 40);
+            font.draw(batch, "RATING: ", centerX, centerY + 40);
+            if (starFilled != null && starEmpty != null) {
+                for (int i = 0; i < 3; i++) {
+                    batch.draw(i < currentStars ? starFilled : starEmpty, centerX + 90 + i * 30, centerY + 18, 24, 24);
+                }
+            } else {
+                font.draw(batch, inputController.getStarString(currentStars), centerX + 90, centerY + 40);
+            }
 
             font.setColor(Color.WHITE);
             font.draw(batch, "Base Payout: $" + lvl.basePayout, centerX, centerY + 10);
@@ -1114,7 +1192,15 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Motor Pitch: " + String.format("%.2f", soundManager.getMotorPitch()), x, y - 180);
 
         font.draw(batch, "Upgrades: E" + boat.engineLevel + " S" + boat.steeringLevel + " H" + boat.hullLevel + " R" + boat.reverseLevel, x, y - 200);
-        font.draw(batch, "Tex Mode: " + (textureManager.hasTexture("boat_" + boat.profile.id) ? "ON" : "OFF (Shape)"), x, y - 220);
+
+        String boatTex = textureManager.getTextureStatus("boat_" + boat.profile.id);
+        String waterTex = textureManager.getTextureStatus("water_tile");
+        String dockTex = textureManager.getTextureStatus("dock_plank");
+
+        font.draw(batch, "Tex Mode: " + (USE_TEXTURES ? "ON" : "OFF"), x, y - 220);
+        font.draw(batch, "Boat Tex: " + boatTex, x, y - 240);
+        font.draw(batch, "Water Tex: " + waterTex, x, y - 260);
+        font.draw(batch, "Dock Tex: " + dockTex, x, y - 280);
     }
 
     @Override

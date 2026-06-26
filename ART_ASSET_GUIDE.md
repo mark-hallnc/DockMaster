@@ -13,29 +13,38 @@ assets/images/
   ├── boats/
   │   ├── skiff.png        (Small white hull)
   │   ├── runabout.png     (Cyan sleeker hull)
-  │   └── pontoon.png      (Grey wide deck)
+  │   ├── pontoon.png      (Grey wide deck)
+  │   └── cruiser.png      (Premium gold cruiser)
   ├── docks/
-  │   └── dock_plank.png   (Brown planks)
+  │   ├── dock_plank.png   (Brown planks)
+  │   ├── piling.png       (Corner posts)
+  │   ├── tire_bumper.png  (Side protection)
+  │   └── cleat.png        (Tie-down points)
   ├── effects/
-  │   └── buoy.png         (Red/White marker)
-  └── backgrounds/
-      └── water_tile.png   (Blue tiled water)
+  │   ├── buoy.png         (Red/White marker)
+  │   ├── marker_buoy.png
+  │   ├── channel_marker_green.png
+  │   ├── channel_marker_red.png
+  │   ├── wake_foam.png
+  │   └── impact_splash.png
+  ├── decor/
+  │   ├── fuel_pump.png
+  │   └── umbrella.png
+  ├── backgrounds/
+  │   ├── water_tile.png   (Blue tiled water)
+  │   ├── rocks_tile.png
+  │   └── sand_tile.png
+  └── ui/
+      ├── star_filled.png
+      ├── star_empty.png
+      ├── cash.png
+      ├── wrench.png
+      ├── damage.png
+      └── lock.png
 ```
-
-## Boat Sprites
-* **Recommended Size:** 256x128 pixels (or similar aspect ratio).
-* **Orientation:** The **BOW (front)** of the boat must point **RIGHT** in the PNG file.
-* **Background:** Must be transparent.
-* **Filenames:** Must match the boat IDs (`skiff.png`, `runabout.png`, `pontoon.png`).
-
-## Dock Sprites
-* **dock_plank.png:** 128x128 or 256x256. This texture will be stretched or tiled over the dock rectangles.
-
-## Backgrounds & Decor
-* **water_tile.png:** 512x512 pixels. Should be a seamless/loopable water texture. It will be tiled across the water area.
-* **buoy.png:** 64x64 transparent PNG. Used for decorative markers in the water.
 
 ## Technical Details
 * Format: 32-bit PNG (with Alpha channel).
-* Power-of-two dimensions (64, 128, 256, 512) are recommended for better compatibility with older Android devices.
-* The game uses linear filtering for textures to keep them looking smooth when scaled.
+* Orientation: Boat bow/front must point **RIGHT** in the PNG.
+* Power-of-two dimensions (64, 128, 256, 512) are recommended.
+* Missing optional images are skipped; missing core images use generated placeholders.
