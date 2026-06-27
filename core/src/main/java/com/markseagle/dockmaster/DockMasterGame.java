@@ -254,25 +254,27 @@ public class DockMasterGame extends ApplicationAdapter {
             if (dock.checkCollision(boat)) {
                 if (collisionFeedbackTimer <= 0) {
                     float impact = boat.velocity.len();
+                    Vector2 impactVelocity = new Vector2(boat.velocity);
                     float dmg = boat.handleCollision(impact);
 
                     // Robust Collision Separation
-                    boat.revertPosition();
+                    boat.restorePreviousPosition();
 
                     // Iterative pushback
                     int iterations = 10;
-                    Vector2 pushDir = new Vector2(boat.velocity).nor().scl(-1f);
+                    Vector2 pushDir = new Vector2(impactVelocity).nor().scl(-1f);
                     if (pushDir.len() < 0.1f) pushDir.set(0, 1); // Fallback
 
                     for (int i = 0; i < iterations; i++) {
                         if (!dock.checkCollision(boat)) break;
-                        boat.x += pushDir.x * 2f;
-                        boat.y += pushDir.y * 2f;
-                        boat.updateBounds();
+                        boat.x += pushDir.x * 4f;
+                        boat.y += pushDir.y * 4f;
+                        boat.updateBoundsPublic();
                     }
 
                     // Cap bounce velocity
                     boat.velocity.limit(80f);
+                    boat.updateBoundsPublic();
 
                     if (state == GameState.TUTORIAL) {
                         boat.damage = 0; // No damage in training
@@ -971,12 +973,15 @@ public class DockMasterGame extends ApplicationAdapter {
             font.setColor(Color.LIME);
             font.draw(batch, "HOLD STEADY: " + (int)(dock.getDockingProgress() * 100) + "%", HUD_WIDTH / 2 - 70, HUD_HEIGHT - 60);
         } else if (dock.slipZone.contains(boat.x, boat.y)) {
-            if (speed >= 35f) {
+            if (speed >= dock.dockingMaxSpeed) {
                 font.setColor(Color.ORANGE);
                 font.draw(batch, "!!! TOO FAST !!!", HUD_WIDTH / 2 - 60, HUD_HEIGHT - 60);
+            } else if (dock.checkCollision(boat)) {
+                font.setColor(Color.RED);
+                font.draw(batch, "TOUCHING DOCK", HUD_WIDTH / 2 - 60, HUD_HEIGHT - 60);
             } else {
                 font.setColor(Color.YELLOW);
-                font.draw(batch, "LINE UP BOAT", HUD_WIDTH / 2 - 50, HUD_HEIGHT - 60);
+                font.draw(batch, "ALIGN WITH DOCK ARROW", HUD_WIDTH / 2 - 100, HUD_HEIGHT - 60);
             }
         } else {
             // Distance check to show "Dock Here" when near but not inside
@@ -1244,7 +1249,7 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Angle: " + (int)boat.angle, x, y - 60);
 
         if (dock.slipZone != null) {
-            font.draw(batch, "Target: " + (int)dock.slipZone.x + "," + (int)dock.slipZone.y, x, y - 80);
+            font.draw(batch, "Target: " + (int)dock.slipZone.x + "," + (int)dock.slipZone.y + " (Angle: " + (int)dock.targetAngle + ")", x, y - 80);
             font.draw(batch, "In Zone: " + dock.slipZone.contains(boat.x, boat.y), x, y - 100);
             font.draw(batch, "Speed: " + (int)boat.velocity.len() + " / " + (int)dock.dockingMaxSpeed, x, y - 120);
 
@@ -1252,7 +1257,7 @@ public class DockMasterGame extends ApplicationAdapter {
             if (angleDiff > 180) angleDiff = 360 - angleDiff;
             font.draw(batch, "Angle Diff: " + (int)angleDiff + " / " + (int)dock.dockingAngleTolerance, x, y - 140);
 
-            font.draw(batch, "Progress: " + (int)(dock.getDockingProgress() * 100) + "% (" + String.format("%.1f", dock.dockingHoldTime) + "s)", x, y - 160);
+            font.draw(batch, "Progress: " + (int)(dock.getDockingProgress() * 100) + "%", x, y - 160);
             font.draw(batch, "Fail Reason: " + dock.lastFailureReason, x, y - 180);
         }
 

@@ -35,14 +35,14 @@ public class LevelManager {
         LevelDefinition lvl2 = new LevelDefinition(
             "Local Marina", "Narrow Approach",
             100, 100, 0,
-            650, 300, 100, 100,
+            635, 300, 100, 100,
             750, 50f
         );
-        lvl2.targetAngle = 0f;
+        lvl2.targetAngle = 90f; // Parallel to docks
         lvl2.dockingMaxSpeed = 50f;
         lvl2.dockingAngleTolerance = 55f;
         lvl2.dockingHoldTime = 1.1f;
-        lvl2.dockingZonePadding = 15f;
+        lvl2.dockingZonePadding = 20f;
         lvl2.addDock(0, 0, 800, 20);
         lvl2.addDock(0, 580, 800, 20);
         lvl2.addDock(600, 200, 20, 300);

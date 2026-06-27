@@ -80,6 +80,12 @@ public class Dock {
     public boolean isInsideSlipZone(Boat boat) {
         if (slipZone == null) return false;
 
+        // Cannot dock while colliding with a dock
+        if (checkCollision(boat)) {
+            lastFailureReason = "touching dock";
+            return false;
+        }
+
         // More forgiving check with padding
         Rectangle checkZone = new Rectangle(slipZone.x - dockingZonePadding, slipZone.y - dockingZonePadding,
                                           slipZone.width + dockingZonePadding * 2, slipZone.height + dockingZonePadding * 2);
@@ -196,16 +202,25 @@ public class Dock {
         if (slipZone == null) return;
 
         // Target outline
-        shape.setColor(1, 1, 1, 0.5f);
+        shape.setColor(1, 1, 1, 0.8f);
         shape.rect(slipZone.x, slipZone.y, slipZone.width, slipZone.height);
 
-        // Directional indicator
+        // Directional indicator / Alignment Arrow
         float centerX = slipZone.x + slipZone.width / 2;
         float centerY = slipZone.y + slipZone.height / 2;
-        float arrowLen = 30;
+        float arrowLen = 45;
         float dx = MathUtils.cosDeg(targetAngle) * arrowLen;
         float dy = MathUtils.sinDeg(targetAngle) * arrowLen;
+
+        shape.setColor(1, 1, 0, 1.0f); // Bright yellow
         shape.line(centerX - dx, centerY - dy, centerX + dx, centerY + dy);
+
+        // Small arrowhead
+        float headSize = 10;
+        float angle1 = targetAngle + 135;
+        float angle2 = targetAngle - 135;
+        shape.line(centerX + dx, centerY + dy, centerX + dx + MathUtils.cosDeg(angle1) * headSize, centerY + dy + MathUtils.sinDeg(angle1) * headSize);
+        shape.line(centerX + dx, centerY + dy, centerX + dx + MathUtils.cosDeg(angle2) * headSize, centerY + dy + MathUtils.sinDeg(angle2) * headSize);
 
         // 3. Progress bar outline
         if (dockingTimer > 0 && !successfullyDocked) {

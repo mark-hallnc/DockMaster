@@ -226,10 +226,14 @@ public class Boat {
         updateBounds();
     }
 
-    public void revertPosition() {
+    public void restorePreviousPosition() {
         this.x = previousX;
         this.y = previousY;
         this.angle = previousAngle;
+        updateBounds();
+    }
+
+    public void updateBoundsPublic() {
         updateBounds();
     }
 
