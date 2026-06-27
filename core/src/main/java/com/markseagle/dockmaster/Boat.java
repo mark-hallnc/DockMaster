@@ -10,6 +10,7 @@ public class Boat {
     public BoatDefinition profile;
 
     public float x, y;
+    public float previousX, previousY;
     public float angle; // in degrees
     public Vector2 velocity = new Vector2();
     public float damage = 0;
@@ -68,6 +69,9 @@ public class Boat {
         if (!active) return;
         if (flashTimer > 0) flashTimer -= delta;
 
+        previousX = x;
+        previousY = y;
+
         Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
         float forwardVelocityMag = velocity.dot(forwardDir);
 
@@ -77,10 +81,13 @@ public class Boat {
         float effectiveTurnRate = profile.turnRate * (1.0f + steeringLevel * 0.05f);
         float effectiveReverseThrust = profile.reverseThrust * (1.0f + reverseLevel * 0.07f);
 
-        // Steering
-        float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, profile.lowSpeedTurnFactor, 1.0f);
-        if (input.left) angle += effectiveTurnRate * turnModifier * delta;
-        if (input.right) angle -= effectiveTurnRate * turnModifier * delta;
+        // Steering - No steerage at dead stop
+        boolean hasSteerage = input.forward || input.reverse || Math.abs(forwardVelocityMag) > 8f || velocity.len() > 15f;
+        if (hasSteerage) {
+            float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, profile.lowSpeedTurnFactor, 1.0f);
+            if (input.left) angle += effectiveTurnRate * turnModifier * delta;
+            if (input.right) angle -= effectiveTurnRate * turnModifier * delta;
+        }
 
         // Thrust
         if (input.forward) {
@@ -109,6 +116,9 @@ public class Boat {
 
         // Apply Natural Water Drag
         velocity.scl((float) Math.pow(profile.waterDrag, delta * 60f));
+
+        // Re-calculate forward velocity for accurate capping
+        forwardVelocityMag = velocity.dot(forwardDir);
 
         // Speed caps
         if (forwardVelocityMag > effectiveMaxSpeed) {
@@ -204,11 +214,26 @@ public class Boat {
 
     public void reset(float x, float y, float angle, float startDamage) {
         this.x = x;
+        this.previousX = x;
         this.y = y;
+        this.previousY = y;
         this.angle = angle;
         this.velocity.set(0, 0);
         this.damage = startDamage;
         this.active = startDamage < 100;
+        updateBounds();
+    }
+
+    public void revertPosition() {
+        this.x = previousX;
+        this.y = previousY;
+        updateBounds();
+    }
+
+    public void nudgeAway(Vector2 force, float amount) {
+        Vector2 dir = new Vector2(force).nor().scl(-amount);
+        this.x += dir.x;
+        this.y += dir.y;
         updateBounds();
     }
 

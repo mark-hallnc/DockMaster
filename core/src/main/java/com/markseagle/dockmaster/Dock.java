@@ -99,10 +99,7 @@ public class Dock {
 
     private float glowTimer = 0;
 
-    public void draw(ShapeRenderer shape, Boat boat) {
-        if (slipZone == null) return;
-        glowTimer += Gdx.graphics.getDeltaTime();
-
+    public void drawDocks(ShapeRenderer shape) {
         shape.set(ShapeRenderer.ShapeType.Filled);
 
         // 1. Draw Docks/Obstacles
@@ -144,6 +141,11 @@ public class Dock {
             shape.setColor(0.6f, 0.6f, 0.6f, 0.5f);
             shape.rect(x, y + h - 2, w, 2); // Top edge light
         }
+    }
+
+    public void drawSlipZone(ShapeRenderer shape, Boat boat) {
+        if (slipZone == null) return;
+        glowTimer += Gdx.graphics.getDeltaTime();
 
         // 2. Slip zone
         if (successfullyDocked) {
@@ -151,7 +153,7 @@ public class Dock {
         } else {
             // Pulsing color based on boat status
             float pulse = (float)(Math.sin(glowTimer * 6f) + 1.0f) * 0.15f;
-            Color zoneColor = new Color(1f, 1f, 0.3f, 0.2f + pulse);
+            Color zoneColor = new Color(0.2f, 0.6f, 1.0f, 0.2f + pulse); // Default blue-ish
 
             if (slipZone.contains(boat.x, boat.y)) {
                 if (isInsideSlipZone(boat)) {
@@ -171,6 +173,15 @@ public class Dock {
         shape.end();
         shape.begin(ShapeRenderer.ShapeType.Line);
         shape.rect(slipZone.x, slipZone.y, slipZone.width, slipZone.height);
+
+        // Directional indicator
+        float centerX = slipZone.x + slipZone.width / 2;
+        float centerY = slipZone.y + slipZone.height / 2;
+        float arrowLen = 30;
+        float dx = MathUtils.cosDeg(targetAngle) * arrowLen;
+        float dy = MathUtils.sinDeg(targetAngle) * arrowLen;
+        shape.line(centerX - dx, centerY - dy, centerX + dx, centerY + dy);
+
         shape.end();
         shape.begin(ShapeRenderer.ShapeType.Filled);
 
