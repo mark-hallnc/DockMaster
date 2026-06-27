@@ -10,7 +10,7 @@ public class Boat {
     public BoatDefinition profile;
 
     public float x, y;
-    public float previousX, previousY;
+    public float previousX, previousY, previousAngle;
     public float angle; // in degrees
     public Vector2 velocity = new Vector2();
     public float damage = 0;
@@ -71,6 +71,7 @@ public class Boat {
 
         previousX = x;
         previousY = y;
+        previousAngle = angle;
 
         Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
         float forwardVelocityMag = velocity.dot(forwardDir);
@@ -142,7 +143,7 @@ public class Boat {
         updateBounds();
     }
 
-    private void updateBounds() {
+    public void updateBounds() {
         bounds.setPosition(x, y);
         bounds.setRotation(angle);
     }
@@ -218,6 +219,7 @@ public class Boat {
         this.y = y;
         this.previousY = y;
         this.angle = angle;
+        this.previousAngle = angle;
         this.velocity.set(0, 0);
         this.damage = startDamage;
         this.active = startDamage < 100;
@@ -227,6 +229,7 @@ public class Boat {
     public void revertPosition() {
         this.x = previousX;
         this.y = previousY;
+        this.angle = previousAngle;
         updateBounds();
     }
 

@@ -22,6 +22,10 @@ public class LevelManager {
             500, 45f
         );
         lvl1.targetAngle = 90f;
+        lvl1.dockingMaxSpeed = 55f;
+        lvl1.dockingAngleTolerance = 60f;
+        lvl1.dockingHoldTime = 1.0f;
+        lvl1.dockingZonePadding = 20f;
         lvl1.addDock(0, 550, 800, 50);
         lvl1.addDock(300, 450, 50, 100);
         lvl1.addDock(450, 450, 50, 100);
@@ -35,6 +39,10 @@ public class LevelManager {
             750, 50f
         );
         lvl2.targetAngle = 0f;
+        lvl2.dockingMaxSpeed = 50f;
+        lvl2.dockingAngleTolerance = 55f;
+        lvl2.dockingHoldTime = 1.1f;
+        lvl2.dockingZonePadding = 15f;
         lvl2.addDock(0, 0, 800, 20);
         lvl2.addDock(0, 580, 800, 20);
         lvl2.addDock(600, 200, 20, 300);
@@ -50,6 +58,10 @@ public class LevelManager {
             1000, 60f
         );
         lvl3.targetAngle = 180f;
+        lvl3.dockingMaxSpeed = 45f;
+        lvl3.dockingAngleTolerance = 50f;
+        lvl3.dockingHoldTime = 1.2f;
+        lvl3.dockingZonePadding = 10f;
         lvl3.addDock(0, 0, 20, 600);
         lvl3.addDock(0, 0, 800, 20);
         lvl3.addDock(150, 0, 20, 400);
@@ -66,6 +78,9 @@ public class LevelManager {
             1250, 65f
         );
         lvl4.targetAngle = -90f;
+        lvl4.dockingMaxSpeed = 40f;
+        lvl4.dockingAngleTolerance = 40f;
+        lvl4.dockingHoldTime = 1.5f;
         lvl4.addDock(550, 0, 250, 50);
         lvl4.addDock(550, 50, 50, 200);
         lvl4.addDock(750, 50, 50, 200);

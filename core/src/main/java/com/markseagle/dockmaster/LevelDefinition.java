@@ -16,6 +16,12 @@ public class LevelDefinition {
     public float parTimeSeconds;
     public float targetAngle = 90f; // Default docking angle
 
+    // Docking Tolerances
+    public float dockingMaxSpeed = 35f;
+    public float dockingAngleTolerance = 30f;
+    public float dockingHoldTime = 1.8f;
+    public float dockingZonePadding = 0f;
+
     // Environmental forces
     public Vector2 windForce = new Vector2(0, 0);
     public List<CurrentZone> currentZones = new ArrayList<>();

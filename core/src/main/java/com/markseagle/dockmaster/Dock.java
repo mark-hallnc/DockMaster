@@ -8,14 +8,20 @@ import com.badlogic.gdx.math.Polygon;
 import com.badlogic.gdx.math.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
+import com.badlogic.gdx.math.MathUtils;
 
 public class Dock {
     public Rectangle slipZone;
     public List<Polygon> collisionPolys = new ArrayList<>();
     public float targetAngle = 90;
 
+    // Level-specific tolerances
+    public float dockingMaxSpeed = 35f;
+    public float dockingAngleTolerance = 30f;
+    public float dockingHoldTime = 1.8f;
+    public float dockingZonePadding = 0f;
+
     private float dockingTimer = 0;
-    private final float DOCKING_TIME_REQUIRED = 1.8f;
     public boolean successfullyDocked = false;
 
     // Debugging
@@ -39,6 +45,10 @@ public class Dock {
             collisionPolys.add(poly);
         }
         this.targetAngle = level.targetAngle;
+        this.dockingMaxSpeed = level.dockingMaxSpeed;
+        this.dockingAngleTolerance = level.dockingAngleTolerance;
+        this.dockingHoldTime = level.dockingHoldTime;
+        this.dockingZonePadding = level.dockingZonePadding;
         reset();
     }
 
@@ -48,7 +58,7 @@ public class Dock {
         if (isInsideSlipZone(boat)) {
             dockingTimer += delta;
             lastFailureReason = "stabilizing";
-            if (dockingTimer >= DOCKING_TIME_REQUIRED) {
+            if (dockingTimer >= dockingHoldTime) {
                 successfullyDocked = true;
                 lastFailureReason = "docked";
             }
@@ -70,14 +80,18 @@ public class Dock {
     public boolean isInsideSlipZone(Boat boat) {
         if (slipZone == null) return false;
 
+        // More forgiving check with padding
+        Rectangle checkZone = new Rectangle(slipZone.x - dockingZonePadding, slipZone.y - dockingZonePadding,
+                                          slipZone.width + dockingZonePadding * 2, slipZone.height + dockingZonePadding * 2);
+
         // Boat center must be inside
-        if (!slipZone.contains(boat.x, boat.y)) {
+        if (!checkZone.contains(boat.x, boat.y)) {
             lastFailureReason = "outside target";
             return false;
         }
 
         // Speed check
-        if (boat.velocity.len() >= 35f) {
+        if (boat.velocity.len() >= dockingMaxSpeed) {
             lastFailureReason = "too fast";
             return false;
         }
@@ -85,7 +99,7 @@ public class Dock {
         // Angle check
         float angleDiff = Math.abs(boat.angle % 360 - targetAngle);
         if (angleDiff > 180) angleDiff = 360 - angleDiff;
-        if (angleDiff > 30f) { // More forgiving
+        if (angleDiff > dockingAngleTolerance) {
             lastFailureReason = "bad angle";
             return false;
         }
@@ -94,7 +108,7 @@ public class Dock {
     }
 
     public float getDockingProgress() {
-        return Math.min(1.0f, dockingTimer / DOCKING_TIME_REQUIRED);
+        return Math.min(1.0f, dockingTimer / dockingHoldTime);
     }
 
     private float glowTimer = 0;
@@ -143,7 +157,7 @@ public class Dock {
         }
     }
 
-    public void drawSlipZone(ShapeRenderer shape, Boat boat) {
+    public void drawSlipZoneFilled(ShapeRenderer shape, Boat boat) {
         if (slipZone == null) return;
         glowTimer += Gdx.graphics.getDeltaTime();
 
@@ -155,10 +169,13 @@ public class Dock {
             float pulse = (float)(Math.sin(glowTimer * 6f) + 1.0f) * 0.15f;
             Color zoneColor = new Color(0.2f, 0.6f, 1.0f, 0.2f + pulse); // Default blue-ish
 
-            if (slipZone.contains(boat.x, boat.y)) {
+            if (slipZone.contains(boat.x, boat.y) ||
+               (dockingZonePadding > 0 && new Rectangle(slipZone.x - dockingZonePadding, slipZone.y - dockingZonePadding,
+                slipZone.width + dockingZonePadding * 2, slipZone.height + dockingZonePadding * 2).contains(boat.x, boat.y))) {
+
                 if (isInsideSlipZone(boat)) {
                     zoneColor = new Color(0.5f, 1f, 0.5f, 0.4f + pulse); // Valid stabilizing
-                } else if (boat.velocity.len() >= 35f) {
+                } else if (boat.velocity.len() >= dockingMaxSpeed) {
                     zoneColor = new Color(1f, 0.3f, 0.1f, 0.4f + pulse); // Too fast
                 } else {
                     zoneColor = new Color(1f, 1f, 0f, 0.4f + pulse); // Bad angle
@@ -168,10 +185,18 @@ public class Dock {
         }
         shape.rect(slipZone.x, slipZone.y, slipZone.width, slipZone.height);
 
+        // 3. Progress bar
+        if (dockingTimer > 0 && !successfullyDocked) {
+            shape.setColor(Color.LIME);
+            shape.rect(slipZone.x, slipZone.y - 18, slipZone.width * getDockingProgress(), 10);
+        }
+    }
+
+    public void drawSlipZoneLines(ShapeRenderer shape, Boat boat) {
+        if (slipZone == null) return;
+
         // Target outline
         shape.setColor(1, 1, 1, 0.5f);
-        shape.end();
-        shape.begin(ShapeRenderer.ShapeType.Line);
         shape.rect(slipZone.x, slipZone.y, slipZone.width, slipZone.height);
 
         // Directional indicator
@@ -182,19 +207,10 @@ public class Dock {
         float dy = MathUtils.sinDeg(targetAngle) * arrowLen;
         shape.line(centerX - dx, centerY - dy, centerX + dx, centerY + dy);
 
-        shape.end();
-        shape.begin(ShapeRenderer.ShapeType.Filled);
-
-        // 3. Progress bar
+        // 3. Progress bar outline
         if (dockingTimer > 0 && !successfullyDocked) {
-            shape.setColor(Color.LIME);
-            shape.rect(slipZone.x, slipZone.y - 18, slipZone.width * getDockingProgress(), 10);
             shape.setColor(Color.WHITE);
-            shape.end();
-            shape.begin(ShapeRenderer.ShapeType.Line);
             shape.rect(slipZone.x, slipZone.y - 18, slipZone.width, 10);
-            shape.end();
-            shape.begin(ShapeRenderer.ShapeType.Filled);
         }
     }
 

@@ -256,9 +256,23 @@ public class DockMasterGame extends ApplicationAdapter {
                     float impact = boat.velocity.len();
                     float dmg = boat.handleCollision(impact);
 
-                    // Unsticking
+                    // Robust Collision Separation
                     boat.revertPosition();
-                    boat.nudgeAway(boat.velocity, 2f);
+
+                    // Iterative pushback
+                    int iterations = 10;
+                    Vector2 pushDir = new Vector2(boat.velocity).nor().scl(-1f);
+                    if (pushDir.len() < 0.1f) pushDir.set(0, 1); // Fallback
+
+                    for (int i = 0; i < iterations; i++) {
+                        if (!dock.checkCollision(boat)) break;
+                        boat.x += pushDir.x * 2f;
+                        boat.y += pushDir.y * 2f;
+                        boat.updateBounds();
+                    }
+
+                    // Cap bounce velocity
+                    boat.velocity.limit(80f);
 
                     if (state == GameState.TUTORIAL) {
                         boat.damage = 0; // No damage in training
@@ -536,7 +550,7 @@ public class DockMasterGame extends ApplicationAdapter {
             dock.drawDocks(shapeRenderer);
         }
 
-        dock.drawSlipZone(shapeRenderer, boat);
+        dock.drawSlipZoneFilled(shapeRenderer, boat);
         drawEnvironmentalIndicators(shapeRenderer, currentLevel);
 
         if (!USE_TEXTURES || !textureManager.hasTexture("buoy")) {
@@ -551,13 +565,14 @@ public class DockMasterGame extends ApplicationAdapter {
             boat.draw(shapeRenderer);
         }
 
+        shapeRenderer.end();
+
+        // --- PASS 2.5: LINES ---
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        dock.drawSlipZoneLines(shapeRenderer, boat);
         if (inputController.debugToggled && dock.slipZone != null) {
             shapeRenderer.setColor(Color.RED);
-            shapeRenderer.end();
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
             shapeRenderer.rect(dock.slipZone.x, dock.slipZone.y, dock.slipZone.width, dock.slipZone.height);
-            shapeRenderer.end();
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         }
         shapeRenderer.end();
 
@@ -1231,30 +1246,36 @@ public class DockMasterGame extends ApplicationAdapter {
         if (dock.slipZone != null) {
             font.draw(batch, "Target: " + (int)dock.slipZone.x + "," + (int)dock.slipZone.y, x, y - 80);
             font.draw(batch, "In Zone: " + dock.slipZone.contains(boat.x, boat.y), x, y - 100);
-            font.draw(batch, "Progress: " + (int)(dock.getDockingProgress() * 100) + "%", x, y - 120);
-            font.draw(batch, "Fail Reason: " + dock.lastFailureReason, x, y - 140);
+            font.draw(batch, "Speed: " + (int)boat.velocity.len() + " / " + (int)dock.dockingMaxSpeed, x, y - 120);
+
+            float angleDiff = Math.abs(boat.angle % 360 - dock.targetAngle);
+            if (angleDiff > 180) angleDiff = 360 - angleDiff;
+            font.draw(batch, "Angle Diff: " + (int)angleDiff + " / " + (int)dock.dockingAngleTolerance, x, y - 140);
+
+            font.draw(batch, "Progress: " + (int)(dock.getDockingProgress() * 100) + "% (" + String.format("%.1f", dock.dockingHoldTime) + "s)", x, y - 160);
+            font.draw(batch, "Fail Reason: " + dock.lastFailureReason, x, y - 180);
         }
 
-        font.draw(batch, "Motor Vol: " + String.format("%.2f", soundManager.getMotorVolume()), x, y - 160);
-        font.draw(batch, "Motor Pitch: " + String.format("%.2f", soundManager.getMotorPitch()), x, y - 180);
+        font.draw(batch, "Motor Vol: " + String.format("%.2f", soundManager.getMotorVolume()), x, y - 200);
+        font.draw(batch, "Motor Pitch: " + String.format("%.2f", soundManager.getMotorPitch()), x, y - 220);
 
-        font.draw(batch, "Upgrades: E" + boat.engineLevel + " S" + boat.steeringLevel + " H" + boat.hullLevel + " R" + boat.reverseLevel, x, y - 200);
+        font.draw(batch, "Upgrades: E" + boat.engineLevel + " S" + boat.steeringLevel + " H" + boat.hullLevel + " R" + boat.reverseLevel, x, y - 240);
 
         String boatTex = textureManager.getTextureStatus("boat_" + boat.profile.id);
         String boatAlpha = textureManager.getAlphaStatus("boat_" + boat.profile.id);
         String waterTex = textureManager.getTextureStatus("water_tile");
         String dockTex = textureManager.getTextureStatus("dock_plank");
 
-        font.draw(batch, "Tex Mode: " + (USE_TEXTURES ? "ON" : "OFF"), x, y - 220);
-        font.draw(batch, "Boat Tex: " + boatTex + " (" + boatAlpha + ")", x, y - 240);
-        font.draw(batch, "Water Tex: " + waterTex, x, y - 260);
-        font.draw(batch, "Dock Tex: " + dockTex, x, y - 280);
+        font.draw(batch, "Tex Mode: " + (USE_TEXTURES ? "ON" : "OFF"), x, y - 260);
+        font.draw(batch, "Boat Tex: " + boatTex + " (" + boatAlpha + ")", x, y - 280);
+        font.draw(batch, "Water Tex: " + waterTex, x, y - 300);
+        font.draw(batch, "Dock Tex: " + dockTex, x, y - 320);
 
-        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 300);
-        font.draw(batch, "Visual Size: " + (int)(boat.profile.length * boat.profile.visualScale) + "x" + (int)(boat.profile.width * boat.profile.visualScale), x, y - 320);
-        font.draw(batch, "Collision Size: " + (int)boat.profile.length + "x" + (int)boat.profile.width, x, y - 340);
-        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 360);
-        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 380);
+        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 340);
+        font.draw(batch, "Visual Size: " + (int)(boat.profile.length * boat.profile.visualScale) + "x" + (int)(boat.profile.width * boat.profile.visualScale), x, y - 360);
+        font.draw(batch, "Collision Size: " + (int)boat.profile.length + "x" + (int)boat.profile.width, x, y - 380);
+        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 400);
+        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 420);
     }
 
     @Override
