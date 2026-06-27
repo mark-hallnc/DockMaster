@@ -58,7 +58,7 @@ public class SoundManager implements Disposable {
         }
     }
 
-    public void updateMotorLoop(boolean shouldRun, float delta, float boatSpeed, boolean forwardThrottle, boolean reverseThrottle) {
+    public void updateMotorLoop(boolean shouldRun, float delta, float boatSpeed, float throttleValue) {
         Sound motor = sounds.get("motor");
         if (motor == null) return;
 
@@ -74,14 +74,17 @@ public class SoundManager implements Disposable {
         }
 
         float normalizedSpeed = MathUtils.clamp(boatSpeed / 180f, 0f, 1f);
-        float throttleBoost = forwardThrottle ? 0.35f : reverseThrottle ? 0.25f : 0f;
+        boolean forwardThrottle = throttleValue > 0.05f;
+        boolean reverseThrottle = throttleValue < -0.05f;
+
+        float throttleBoost = Math.abs(throttleValue) * 0.35f;
         float targetVolume = MathUtils.clamp(throttleBoost + normalizedSpeed * 0.45f, 0f, 0.7f);
 
-        if (!forwardThrottle && !reverseThrottle && normalizedSpeed < 0.05f) {
+        if (Math.abs(throttleValue) < 0.05f && normalizedSpeed < 0.05f) {
             targetVolume = 0f;
         }
 
-        float targetPitch = MathUtils.clamp(0.70f + normalizedSpeed * 0.45f + (forwardThrottle ? 0.10f : 0f), 0.65f, 1.25f);
+        float targetPitch = MathUtils.clamp(0.70f + normalizedSpeed * 0.45f + (forwardThrottle ? 0.10f : 0f) + (reverseThrottle ? 0.05f : 0f), 0.65f, 1.25f);
 
         // Smooth changes
         motorVolume += (targetVolume - motorVolume) * Math.min(1f, delta * 4f);

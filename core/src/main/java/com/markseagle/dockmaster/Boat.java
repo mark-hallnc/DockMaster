@@ -83,24 +83,22 @@ public class Boat {
         float effectiveReverseThrust = profile.reverseThrust * (1.0f + reverseLevel * 0.07f);
 
         // Steering - No steerage at dead stop
-        boolean hasSteerage = input.forward || input.reverse || Math.abs(forwardVelocityMag) > 8f || velocity.len() > 15f;
+        boolean hasSteerage = Math.abs(input.throttleValue) > 0.05f || Math.abs(forwardVelocityMag) > 8f || velocity.len() > 15f;
         if (hasSteerage) {
             float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, profile.lowSpeedTurnFactor, 1.0f);
-            if (input.left) angle += effectiveTurnRate * turnModifier * delta;
-            if (input.right) angle -= effectiveTurnRate * turnModifier * delta;
+            angle -= effectiveTurnRate * input.steeringValue * turnModifier * delta;
         }
 
         // Thrust
-        if (input.forward) {
+        if (input.throttleValue > 0) {
             velocity.add(
-                forwardDir.x * effectiveThrust * delta,
-                forwardDir.y * effectiveThrust * delta
+                forwardDir.x * effectiveThrust * input.throttleValue * delta,
+                forwardDir.y * effectiveThrust * input.throttleValue * delta
             );
-        }
-        if (input.reverse) {
+        } else if (input.throttleValue < 0) {
             velocity.add(
-                -forwardDir.x * effectiveReverseThrust * delta,
-                -forwardDir.y * effectiveReverseThrust * delta
+                forwardDir.x * (effectiveReverseThrust * input.throttleValue) * delta,
+                forwardDir.y * (effectiveReverseThrust * input.throttleValue) * delta
             );
         }
 

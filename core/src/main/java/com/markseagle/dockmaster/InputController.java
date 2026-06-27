@@ -15,6 +15,8 @@ import java.util.List;
 
 public class InputController {
     public boolean forward, reverse, left, right;
+    public float throttleValue = 0f; // -1.0 (REV) to 1.0 (FWD)
+    public float steeringValue = 0f; // -1.0 (LEFT) to 1.0 (RIGHT)
     public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed, trainingPressed, skipPressed, pausePressed;
     public boolean upgradeEnginePressed, upgradeSteeringPressed, upgradeHullPressed, upgradeReversePressed;
     public boolean soundToggled, vibrateToggled;
@@ -127,11 +129,21 @@ public class InputController {
         selectedLevelIndex = -1;
         selectedBoatIndex = -1;
 
-        // Keyboard
-        forward = Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP);
-        reverse = Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN);
-        left = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
-        right = Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+        // Reset Analog
+        throttleValue = 0f;
+        steeringValue = 0f;
+
+        // Keyboard Analog mapping
+        boolean kFwd = Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP);
+        boolean kRev = Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN);
+        boolean kLeft = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
+        boolean kRight = Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
+
+        if (kFwd && !kRev) throttleValue = 1.0f;
+        else if (kRev && !kFwd) throttleValue = -1.0f;
+
+        if (kRight && !kLeft) steeringValue = 1.0f;
+        else if (kLeft && !kRight) steeringValue = -1.0f;
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             if (state == DockMasterGame.GameState.GARAGE) repairPressed = true;
@@ -167,10 +179,11 @@ public class InputController {
                 hudViewport.unproject(touch);
 
                 if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
-                    if (btnLeft.contains(touch)) left = true;
-                    if (btnRight.contains(touch)) right = true;
-                    if (btnFwd.contains(touch)) forward = true;
-                    if (btnRev.contains(touch)) reverse = true;
+                    if (btnLeft.contains(touch)) steeringValue = -1.0f;
+                    if (btnRight.contains(touch)) steeringValue = 1.0f;
+                    if (btnFwd.contains(touch)) throttleValue = 1.0f;
+                    if (btnRev.contains(touch)) throttleValue = -1.0f;
+
                     if (Gdx.input.justTouched()) {
                         if (btnPause.contains(touch)) pausePressed = true;
                         if (state == DockMasterGame.GameState.TUTORIAL && btnSkip.contains(touch)) skipPressed = true;
@@ -220,6 +233,16 @@ public class InputController {
                 }
             }
         }
+
+        // Apply Dead Zones & Clamp
+        if (Math.abs(throttleValue) < 0.05f) throttleValue = 0;
+        if (Math.abs(steeringValue) < 0.05f) steeringValue = 0;
+
+        // Sync Booleans for compatibility
+        forward = throttleValue > 0.1f;
+        reverse = throttleValue < -0.1f;
+        left = steeringValue < -0.1f;
+        right = steeringValue > 0.1f;
     }
 
     public void drawShapes(ShapeRenderer shape, DockMasterGame.GameState state, String currentBoatId, BoatCatalog bc, boolean boatTotaled) {
@@ -392,6 +415,9 @@ public class InputController {
         }
         return "[" + sb.toString() + "]";
     }
+
+    public float getThrottleValue() { return throttleValue; }
+    public float getSteeringValue() { return steeringValue; }
 
     private void drawUpgradeLabel(SpriteBatch batch, BitmapFont font, String title, Rectangle rect, int currentLevel) {
         font.setColor(Color.YELLOW);

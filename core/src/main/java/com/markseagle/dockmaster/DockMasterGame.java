@@ -343,7 +343,7 @@ public class DockMasterGame extends ApplicationAdapter {
         boolean motorShouldRun = (state == GameState.PLAYING || state == GameState.TUTORIAL) && boat != null && boat.active;
         soundManager.updateMotorLoop(motorShouldRun, delta,
             boat != null ? boat.velocity.len() : 0,
-            inputController.forward, inputController.reverse);
+            inputController.throttleValue);
 
         ScreenUtils.clear(0.1f, 0.3f, 0.5f, 1f);
 
@@ -1247,24 +1247,26 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Pos: " + (int)boat.x + ", " + (int)boat.y, x, y - 20);
         font.draw(batch, "Vel: " + (int)boat.velocity.len(), x, y - 40);
         font.draw(batch, "Angle: " + (int)boat.angle, x, y - 60);
+        font.draw(batch, "Throttle: " + String.format("%.2f", inputController.throttleValue), x, y - 80);
+        font.draw(batch, "Steer: " + String.format("%.2f", inputController.steeringValue), x, y - 100);
 
         if (dock.slipZone != null) {
-            font.draw(batch, "Target: " + (int)dock.slipZone.x + "," + (int)dock.slipZone.y + " (Angle: " + (int)dock.targetAngle + ")", x, y - 80);
-            font.draw(batch, "In Zone: " + dock.slipZone.contains(boat.x, boat.y), x, y - 100);
-            font.draw(batch, "Speed: " + (int)boat.velocity.len() + " / " + (int)dock.dockingMaxSpeed, x, y - 120);
+            font.draw(batch, "Target: " + (int)dock.slipZone.x + "," + (int)dock.slipZone.y + " (Angle: " + (int)dock.targetAngle + ")", x, y - 120);
+            font.draw(batch, "In Zone: " + dock.slipZone.contains(boat.x, boat.y), x, y - 140);
+            font.draw(batch, "Speed: " + (int)boat.velocity.len() + " / " + (int)dock.dockingMaxSpeed, x, y - 160);
 
             float angleDiff = Math.abs(boat.angle % 360 - dock.targetAngle);
             if (angleDiff > 180) angleDiff = 360 - angleDiff;
-            font.draw(batch, "Angle Diff: " + (int)angleDiff + " / " + (int)dock.dockingAngleTolerance, x, y - 140);
+            font.draw(batch, "Angle Diff: " + (int)angleDiff + " / " + (int)dock.dockingAngleTolerance, x, y - 180);
 
-            font.draw(batch, "Progress: " + (int)(dock.getDockingProgress() * 100) + "%", x, y - 160);
-            font.draw(batch, "Fail Reason: " + dock.lastFailureReason, x, y - 180);
+            font.draw(batch, "Progress: " + (int)(dock.getDockingProgress() * 100) + "%", x, y - 200);
+            font.draw(batch, "Fail Reason: " + dock.lastFailureReason, x, y - 220);
         }
 
-        font.draw(batch, "Motor Vol: " + String.format("%.2f", soundManager.getMotorVolume()), x, y - 200);
-        font.draw(batch, "Motor Pitch: " + String.format("%.2f", soundManager.getMotorPitch()), x, y - 220);
+        font.draw(batch, "Motor Vol: " + String.format("%.2f", soundManager.getMotorVolume()), x, y - 240);
+        font.draw(batch, "Motor Pitch: " + String.format("%.2f", soundManager.getMotorPitch()), x, y - 260);
 
-        font.draw(batch, "Upgrades: E" + boat.engineLevel + " S" + boat.steeringLevel + " H" + boat.hullLevel + " R" + boat.reverseLevel, x, y - 240);
+        font.draw(batch, "Upgrades: E" + boat.engineLevel + " S" + boat.steeringLevel + " H" + boat.hullLevel + " R" + boat.reverseLevel, x, y - 280);
 
         String boatTex = textureManager.getTextureStatus("boat_" + boat.profile.id);
         String boatAlpha = textureManager.getAlphaStatus("boat_" + boat.profile.id);
