@@ -22,11 +22,19 @@ public class BoatDefinition {
     public Color color;
     public float length;
     public float width;
+    public float visualScale = 1.0f;
 
     public BoatDefinition(String id, String displayName, String description, long value,
                           float forwardThrust, float reverseThrust, float waterDrag, float sideDrag,
                           float turnRate, float lowSpeedTurnFactor, float maxForwardSpeed, float maxReverseSpeed,
                           Color color, float length, float width) {
+        this(id, displayName, description, value, forwardThrust, reverseThrust, waterDrag, sideDrag, turnRate, lowSpeedTurnFactor, maxForwardSpeed, maxReverseSpeed, color, length, width, 1.0f);
+    }
+
+    public BoatDefinition(String id, String displayName, String description, long value,
+                          float forwardThrust, float reverseThrust, float waterDrag, float sideDrag,
+                          float turnRate, float lowSpeedTurnFactor, float maxForwardSpeed, float maxReverseSpeed,
+                          Color color, float length, float width, float visualScale) {
         this.id = id;
         this.displayName = displayName;
         this.description = description;
@@ -42,5 +50,6 @@ public class BoatDefinition {
         this.color = color;
         this.length = length;
         this.width = width;
+        this.visualScale = visualScale;
     }
 }

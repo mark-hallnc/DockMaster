@@ -172,8 +172,8 @@ public class Boat {
         shape.getTransformMatrix().idt().translate(x, y, 0).rotate(0, 0, 1, angle);
         shape.updateMatrices();
 
-        float l = profile.length;
-        float w = profile.width;
+        float l = profile.length * profile.visualScale;
+        float w = profile.width * profile.visualScale;
 
         // 1. Hull Shadow/Outline (slightly larger)
         shape.setColor(0, 0, 0, 0.3f);
@@ -183,7 +183,7 @@ public class Boat {
         // 2. Main Hull
         shape.setColor(boatColor);
         shape.rect(-l / 2, -w / 2, l * 0.7f, w);
-        shape.triangle(l * 0.2f, -w / 2, l * 0.2f, w / 2, l / 2 + 10, 0);
+        shape.triangle(l * 0.2f, -w / 2, l * 0.2f, w / 2, l / 2 + 10 * profile.visualScale, 0);
 
         // 3. Deck/Cabin Details
         shape.setColor(0.9f, 0.9f, 0.9f, 1f); // Off-white deck
@@ -191,11 +191,11 @@ public class Boat {
 
         // Window/Windshield
         shape.setColor(0.2f, 0.2f, 0.2f, 0.8f);
-        shape.rect(0, -w * 0.3f, 4, w * 0.6f);
+        shape.rect(0, -w * 0.3f, 4 * profile.visualScale, w * 0.6f);
 
         // Stern details
         shape.setColor(0.3f, 0.3f, 0.3f, 1f);
-        shape.rect(-l/2, -w/4, 4, w/2);
+        shape.rect(-l/2, -w/4, 4 * profile.visualScale, w/2);
 
         shape.flush();
         shape.getTransformMatrix().idt();

@@ -15,18 +15,19 @@ import java.util.List;
 
 public class InputController {
     public boolean forward, reverse, left, right;
-    public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed, trainingPressed, skipPressed;
+    public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed, trainingPressed, skipPressed, pausePressed;
     public boolean upgradeEnginePressed, upgradeSteeringPressed, upgradeHullPressed, upgradeReversePressed;
     public boolean soundToggled, vibrateToggled;
     public boolean debugToggled = false;
 
     private final Rectangle btnLeft, btnRight, btnFwd, btnRev;
-    private final Rectangle btnNext, btnRetry;
+    private final Rectangle btnNext, btnRetry, btnPause;
     private final Rectangle btnStart, btnBack, btnLevelSelect, btnBoatSelect, btnGarage, btnSettings, btnTraining;
     private final Rectangle btnRepair, btnSkip;
     private final Rectangle btnUpgradeEngine, btnUpgradeSteering, btnUpgradeHull, btnUpgradeReverse;
     private final Rectangle btnLevelSelectResults, btnTitleResults, btnGarageResults;
     private final Rectangle btnSound, btnVibrate;
+    private final Rectangle btnResumePause, btnRetryPause, btnLevelSelectPause, btnTitlePause, btnGaragePause;
 
     // Grid buttons
     public final List<Rectangle> levelButtons = new ArrayList<>();
@@ -76,6 +77,16 @@ public class InputController {
         btnGarageResults = new Rectangle(hudWidth / 2 - 110, 130, 220, 45);
         btnTitleResults = new Rectangle(hudWidth / 2 - 110, 75, 220, 45);
 
+        // Pause menu
+        btnPause = new Rectangle(hudWidth - 70, hudHeight - 60, 60, 50);
+        float pw = 200;
+        float ph = 50;
+        btnResumePause = new Rectangle(hudWidth / 2 - pw/2, 350, pw, ph);
+        btnRetryPause = new Rectangle(hudWidth / 2 - pw/2, 290, pw, ph);
+        btnLevelSelectPause = new Rectangle(hudWidth / 2 - pw/2, 230, pw, ph);
+        btnGaragePause = new Rectangle(hudWidth / 2 - pw/2, 170, pw, ph);
+        btnTitlePause = new Rectangle(hudWidth / 2 - pw/2, 110, pw, ph);
+
         // Back button
         btnBack = new Rectangle(20, hudHeight - 80, 100, 50);
 
@@ -102,6 +113,7 @@ public class InputController {
         garagePressed = false;
         trainingPressed = false;
         skipPressed = false;
+        pausePressed = false;
         repairPressed = false;
         upgradeEnginePressed = false;
         upgradeSteeringPressed = false;
@@ -136,7 +148,13 @@ public class InputController {
             if (state == DockMasterGame.GameState.TITLE) boatSelectPressed = true;
             else titlePressed = true;
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) titlePressed = true;
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.P)) {
+            if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL || state == DockMasterGame.GameState.PAUSED) {
+                pausePressed = true;
+            } else {
+                titlePressed = true;
+            }
+        }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) {
             debugToggled = !debugToggled;
@@ -153,8 +171,9 @@ public class InputController {
                     if (btnRight.contains(touch)) right = true;
                     if (btnFwd.contains(touch)) forward = true;
                     if (btnRev.contains(touch)) reverse = true;
-                    if (state == DockMasterGame.GameState.TUTORIAL && Gdx.input.justTouched()) {
-                        if (btnSkip.contains(touch)) skipPressed = true;
+                    if (Gdx.input.justTouched()) {
+                        if (btnPause.contains(touch)) pausePressed = true;
+                        if (state == DockMasterGame.GameState.TUTORIAL && btnSkip.contains(touch)) skipPressed = true;
                     }
                 } else if (Gdx.input.justTouched()) {
                     if (state == DockMasterGame.GameState.TITLE) {
@@ -164,6 +183,12 @@ public class InputController {
                         if (btnBoatSelect.contains(touch)) boatSelectPressed = true;
                         if (btnGarage.contains(touch)) garagePressed = true;
                         if (btnSettings.contains(touch)) settingsPressed = true;
+                    } else if (state == DockMasterGame.GameState.PAUSED) {
+                        if (btnResumePause.contains(touch) || btnPause.contains(touch)) pausePressed = true;
+                        if (btnRetryPause.contains(touch)) retryPressed = true;
+                        if (btnLevelSelectPause.contains(touch)) levelSelectPressed = true;
+                        if (btnGaragePause.contains(touch)) garagePressed = true;
+                        if (btnTitlePause.contains(touch)) titlePressed = true;
                     } else if (state == DockMasterGame.GameState.SETTINGS) {
                         if (btnBack.contains(touch)) titlePressed = true;
                         if (btnSound.contains(touch)) soundToggled = true;
@@ -203,9 +228,16 @@ public class InputController {
             drawButton(shape, btnRight, right);
             drawButton(shape, btnFwd, forward);
             drawButton(shape, btnRev, reverse);
+            drawButton(shape, btnPause, false);
             if (state == DockMasterGame.GameState.TUTORIAL) {
                 drawButton(shape, btnSkip, false);
             }
+        } else if (state == DockMasterGame.GameState.PAUSED) {
+            drawButton(shape, btnResumePause, false);
+            drawButton(shape, btnRetryPause, false);
+            drawButton(shape, btnLevelSelectPause, false);
+            drawButton(shape, btnGaragePause, false);
+            drawButton(shape, btnTitlePause, false);
         } else if (state == DockMasterGame.GameState.TITLE) {
             drawButton(shape, btnStart, false);
             drawButton(shape, btnTraining, false);
@@ -252,9 +284,16 @@ public class InputController {
             drawCenteredLabel(batch, font, "RIGHT", btnRight);
             drawCenteredLabel(batch, font, "FWD", btnFwd);
             drawCenteredLabel(batch, font, "REV", btnRev);
+            drawCenteredLabel(batch, font, "MENU", btnPause);
             if (state == DockMasterGame.GameState.TUTORIAL) {
                 drawCenteredLabel(batch, font, "SKIP", btnSkip);
             }
+        } else if (state == DockMasterGame.GameState.PAUSED) {
+            drawCenteredLabel(batch, font, "RESUME", btnResumePause);
+            drawCenteredLabel(batch, font, "RETRY", btnRetryPause);
+            drawCenteredLabel(batch, font, "LEVEL SELECT", btnLevelSelectPause);
+            drawCenteredLabel(batch, font, "GARAGE", btnGaragePause);
+            drawCenteredLabel(batch, font, "TITLE", btnTitlePause);
         } else if (state == DockMasterGame.GameState.TITLE) {
             drawCenteredLabel(batch, font, "START", btnStart);
             drawCenteredLabel(batch, font, "TRAINING", btnTraining);

@@ -18,7 +18,7 @@ import com.badlogic.gdx.utils.viewport.Viewport;
 import java.util.List;
 
 public class DockMasterGame extends ApplicationAdapter {
-    public enum GameState { TITLE, LEVEL_SELECT, BOAT_SELECT, GARAGE, SETTINGS, TUTORIAL, PLAYING, DOCKED, FAILED }
+    public enum GameState { TITLE, LEVEL_SELECT, BOAT_SELECT, GARAGE, SETTINGS, TUTORIAL, PLAYING, DOCKED, FAILED, PAUSED }
     private GameState state = GameState.TITLE;
 
     private SpriteBatch batch;
@@ -327,7 +327,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         ScreenUtils.clear(0.1f, 0.3f, 0.5f, 1f);
 
-        if (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED || state == GameState.TUTORIAL) {
+        if (state == GameState.PLAYING || state == GameState.DOCKED || state == GameState.FAILED || state == GameState.TUTORIAL || state == GameState.PAUSED) {
             renderWorld();
         }
         renderHud(boatTotaled);
@@ -387,6 +387,12 @@ public class DockMasterGame extends ApplicationAdapter {
             progressManager.setVibrationEnabled(!progressManager.isVibrationEnabled());
             soundManager.play("click");
             vibrate(100);
+        }
+
+        if (inputController.pausePressed) {
+            soundManager.play("click");
+            if (state == GameState.PLAYING || state == GameState.TUTORIAL) state = GameState.PAUSED;
+            else if (state == GameState.PAUSED) state = GameState.PLAYING;
         }
 
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.H)) {
@@ -580,12 +586,19 @@ public class DockMasterGame extends ApplicationAdapter {
         if (water == null) return;
 
         // Draw large enough to cover the view and support some camera movement
-        float startX = worldCamera.position.x - WORLD_WIDTH;
-        float startY = worldCamera.position.y - WORLD_HEIGHT;
-        float width = WORLD_WIDTH * 2;
-        float height = WORLD_HEIGHT * 2;
+        // We use UV coordinates to repeat the texture based on world position
+        float startX = worldCamera.position.x - WORLD_WIDTH * worldCamera.zoom;
+        float startY = worldCamera.position.y - WORLD_HEIGHT * worldCamera.zoom;
+        float width = WORLD_WIDTH * 2 * worldCamera.zoom;
+        float height = WORLD_HEIGHT * 2 * worldCamera.zoom;
 
-        batch.draw(water, startX, startY, width, height, 0, 0, (int)(width/water.getWidth()), (int)(height/water.getHeight()));
+        // Tiling calculation based on world units
+        float u = startX / water.getWidth();
+        float v = -startY / water.getHeight(); // Flip Y for typical UV space
+        float u2 = u + width / water.getWidth();
+        float v2 = v - height / water.getHeight();
+
+        batch.draw(water, startX, startY, width, height, u, v, u2, v2);
     }
 
     private void drawTexturedDocks(SpriteBatch batch) {
@@ -673,8 +686,8 @@ public class DockMasterGame extends ApplicationAdapter {
         Texture tex = textureManager.getTexture(texKey);
         if (tex == null) return;
 
-        float l = boat.profile.length;
-        float w = boat.profile.width;
+        float l = boat.profile.length * boat.profile.visualScale;
+        float w = boat.profile.width * boat.profile.visualScale;
 
         // In our ShapeRenderer, boat points right at 0 degrees, and 90 is up.
         // LibGDX draw() with rotation assumes the texture points right at 0 degrees.
@@ -761,14 +774,16 @@ public class DockMasterGame extends ApplicationAdapter {
             drawPanel(shapeRenderer, 50, 100, 700, 400);
         } else if (state == GameState.SETTINGS) {
             drawPanel(shapeRenderer, HUD_WIDTH / 2 - 200, 100, 400, 350);
+        } else if (state == GameState.PAUSED) {
+            drawPanel(shapeRenderer, HUD_WIDTH / 2 - 150, 80, 300, 380);
         } else if (state == GameState.TUTORIAL) {
             drawHUDShapes();
             if (tutorialManager.getCurrentStep() == TutorialManager.Step.COMPLETE) {
                 drawTutorialCompleteShapes();
             }
-        } else if (state == GameState.PLAYING) {
+        } else if (state == GameState.PLAYING || state == GameState.PAUSED) {
             drawHUDShapes();
-            if (introTimer > 0) drawLevelIntroShapes();
+            if (introTimer > 0 && state != GameState.PAUSED) drawLevelIntroShapes();
         } else if (state == GameState.DOCKED || state == GameState.FAILED) {
             drawHUDShapes();
             drawResultsBackdrop();
@@ -805,9 +820,9 @@ public class DockMasterGame extends ApplicationAdapter {
             if (tutorialManager.getCurrentStep() == TutorialManager.Step.COMPLETE) {
                 drawTutorialCompleteText();
             }
-        } else if (state == GameState.PLAYING) {
+        } else if (state == GameState.PLAYING || state == GameState.PAUSED) {
             drawHUDText();
-            if (introTimer > 0) drawLevelIntroText();
+            if (state != GameState.PAUSED && introTimer > 0) drawLevelIntroText();
             drawDockingGuidanceText();
         } else if (state == GameState.DOCKED || state == GameState.FAILED) {
             drawHUDText();
@@ -1078,9 +1093,9 @@ public class DockMasterGame extends ApplicationAdapter {
         worldCamera.position.x += (targetX - worldCamera.position.x) * lerp * delta;
         worldCamera.position.y += (targetY - worldCamera.position.y) * lerp * delta;
 
-        // Speed based zoom
-        float minZoom = 0.85f;
-        float maxZoom = 1.35f;
+        // Speed based zoom (Slightly closer overall by 10%)
+        float minZoom = 0.75f; // reduced from 0.85
+        float maxZoom = 1.25f; // reduced from 1.35
         float speedNormalized = MathUtils.clamp(boat.velocity.len() / 350f, 0, 1);
         float targetZoom = minZoom + (maxZoom - minZoom) * speedNormalized;
 
@@ -1210,6 +1225,10 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Boat Tex: " + boatTex + " (" + boatAlpha + ")", x, y - 240);
         font.draw(batch, "Water Tex: " + waterTex, x, y - 260);
         font.draw(batch, "Dock Tex: " + dockTex, x, y - 280);
+
+        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 300);
+        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 320);
+        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 340);
     }
 
     @Override

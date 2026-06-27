@@ -114,6 +114,12 @@ public class TextureManager implements Disposable {
         try {
             Texture texture = new Texture(Gdx.files.internal(path));
             texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+
+            // Set repeat wrap for tiles
+            if (name.contains("tile") || name.contains("plank")) {
+                texture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+            }
+
             textures.put(name, texture);
             realTextureLoaded.put(name, true);
 
