@@ -502,6 +502,8 @@ public class DockMasterGame extends ApplicationAdapter {
 
         // --- PASS 1: BACKGROUND SPRITES ---
         batch.begin();
+        batch.enableBlending();
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         if (USE_TEXTURES) {
             drawTexturedWater(batch);
         }
@@ -550,6 +552,9 @@ public class DockMasterGame extends ApplicationAdapter {
 
         // --- PASS 3: WORLD SPRITES (Textured objects) ---
         batch.begin();
+        batch.enableBlending();
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
         if (USE_TEXTURES) {
             if (textureManager.hasTexture("dock_plank")) {
                 drawTexturedDocks(batch);
@@ -778,6 +783,9 @@ public class DockMasterGame extends ApplicationAdapter {
 
         // --- PASS 2: TEXT ---
         batch.begin();
+        batch.enableBlending();
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
         inputController.drawLabels(batch, font, state, levelManager, progressManager, boatCatalog, boatTotaled, textureManager);
 
         if (state == GameState.TITLE) {
@@ -1194,11 +1202,12 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Upgrades: E" + boat.engineLevel + " S" + boat.steeringLevel + " H" + boat.hullLevel + " R" + boat.reverseLevel, x, y - 200);
 
         String boatTex = textureManager.getTextureStatus("boat_" + boat.profile.id);
+        String boatAlpha = textureManager.getAlphaStatus("boat_" + boat.profile.id);
         String waterTex = textureManager.getTextureStatus("water_tile");
         String dockTex = textureManager.getTextureStatus("dock_plank");
 
         font.draw(batch, "Tex Mode: " + (USE_TEXTURES ? "ON" : "OFF"), x, y - 220);
-        font.draw(batch, "Boat Tex: " + boatTex, x, y - 240);
+        font.draw(batch, "Boat Tex: " + boatTex + " (" + boatAlpha + ")", x, y - 240);
         font.draw(batch, "Water Tex: " + waterTex, x, y - 260);
         font.draw(batch, "Dock Tex: " + dockTex, x, y - 280);
     }
