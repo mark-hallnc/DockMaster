@@ -12,6 +12,7 @@ public class ProgressManager {
     private static final String KEY_VIBRATE = "vibrationEnabled";
     private static final String KEY_TUTORIAL = "tutorialCompleted";
     private static final String KEY_CONTROL_MODE = "controlMode"; // "buttons" or "boat"
+    private static final String KEY_THROTTLE_MODE = "throttleMode"; // "spring" or "sticky"
 
     // Per-boat keys will be like "damage_skiff", "value_skiff"
     private static final String PREFIX_DAMAGE = "damage_";
@@ -31,6 +32,7 @@ public class ProgressManager {
     private boolean vibrationEnabled;
     private boolean tutorialCompleted;
     private String controlMode;
+    private String throttleMode;
 
     public ProgressManager() {
         prefs = Gdx.app.getPreferences(PREFS_NAME);
@@ -41,6 +43,7 @@ public class ProgressManager {
         vibrationEnabled = prefs.getBoolean(KEY_VIBRATE, true);
         tutorialCompleted = prefs.getBoolean(KEY_TUTORIAL, false);
         controlMode = prefs.getString(KEY_CONTROL_MODE, "buttons");
+        throttleMode = prefs.getString(KEY_THROTTLE_MODE, "spring");
     }
 
     public String getSelectedBoatId() {
@@ -166,6 +169,16 @@ public class ProgressManager {
     public void setControlMode(String mode) {
         this.controlMode = mode;
         prefs.putString(KEY_CONTROL_MODE, mode);
+        prefs.flush();
+    }
+
+    public String getThrottleMode() {
+        return throttleMode;
+    }
+
+    public void setThrottleMode(String mode) {
+        this.throttleMode = mode;
+        prefs.putString(KEY_THROTTLE_MODE, mode);
         prefs.flush();
     }
 }

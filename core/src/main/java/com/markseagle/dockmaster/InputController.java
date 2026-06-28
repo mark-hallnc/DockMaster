@@ -19,6 +19,7 @@ public class InputController {
     public float steeringValue = 0f; // -1.0 (LEFT) to 1.0 (RIGHT)
     private float rawThrottleValue = 0f;
     private float rawSteeringValue = 0f;
+    private float stickyThrottleValue = 0f;
 
     // Control Tuning Constants
     private static final float THROTTLE_DEADZONE = 0.08f;
@@ -30,10 +31,9 @@ public class InputController {
 
     private int throttlePointer = -1;
     private int steeringPointer = -1;
-    private boolean throttleSpringReturn = true;
 
     public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed, trainingPressed, skipPressed, pausePressed;
-    public boolean controlModeToggled;
+    public boolean controlModeToggled, throttleModeToggled;
     public boolean upgradeEnginePressed, upgradeSteeringPressed, upgradeHullPressed, upgradeReversePressed;
     public boolean soundToggled, vibrateToggled;
     public boolean debugToggled = false;
@@ -41,7 +41,7 @@ public class InputController {
     private final Rectangle btnLeft, btnRight, btnFwd, btnRev;
     private final Rectangle btnNext, btnRetry, btnPause;
     private final Rectangle btnStart, btnBack, btnLevelSelect, btnBoatSelect, btnGarage, btnSettings, btnTraining;
-    private final Rectangle btnRepair, btnSkip, btnControls;
+    private final Rectangle btnRepair, btnSkip, btnControls, btnThrottleMode;
     private final Rectangle btnUpgradeEngine, btnUpgradeSteering, btnUpgradeHull, btnUpgradeReverse;
     private final Rectangle btnLevelSelectResults, btnTitleResults, btnGarageResults;
     private final Rectangle btnSound, btnVibrate;
@@ -83,7 +83,8 @@ public class InputController {
         // Settings screen
         btnSound = new Rectangle(hudWidth / 2 - 100, 300, 200, 60);
         btnVibrate = new Rectangle(hudWidth / 2 - 100, 200, 200, 60);
-        btnControls = new Rectangle(hudWidth / 2 - 100, 100, 200, 60);
+        btnControls = new Rectangle(hudWidth / 2 - 100, 120, 200, 50);
+        btnThrottleMode = new Rectangle(hudWidth / 2 - 100, 60, 200, 50);
 
         // Garage screen
         btnRepair = new Rectangle(hudWidth / 2 - 100, 150, 200, 60);
@@ -130,7 +131,7 @@ public class InputController {
         }
     }
 
-    public void update(float delta, Viewport hudViewport, DockMasterGame.GameState state, boolean boatTotaled, String controlMode) {
+    public void update(float delta, Viewport hudViewport, DockMasterGame.GameState state, boolean boatTotaled, String controlMode, String throttleMode) {
         nextPressed = false;
         retryPressed = false;
         levelSelectPressed = false;
@@ -140,6 +141,7 @@ public class InputController {
         skipPressed = false;
         pausePressed = false;
         controlModeToggled = false;
+        throttleModeToggled = false;
         repairPressed = false;
         upgradeEnginePressed = false;
         upgradeSteeringPressed = false;
@@ -178,6 +180,7 @@ public class InputController {
             if (state == DockMasterGame.GameState.TITLE) startPressed = true;
             if (state == DockMasterGame.GameState.GARAGE) repairPressed = true;
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) stickyThrottleValue = 0; // Emergency Neutral
         if (Gdx.input.isKeyJustPressed(Input.Keys.L)) levelSelectPressed = true;
         if (Gdx.input.isKeyJustPressed(Input.Keys.G)) garagePressed = true;
         if (Gdx.input.isKeyJustPressed(Input.Keys.B)) {
@@ -195,6 +198,7 @@ public class InputController {
 
         // --- Touch ---
         boolean boatMode = "boat".equals(controlMode);
+        boolean isSticky = "sticky".equals(throttleMode);
         float touchThrottle = 0;
         float touchSteering = 0;
         boolean throttleTouched = false;
@@ -217,6 +221,11 @@ public class InputController {
                             touch.y > throttleRect.y - 40 && touch.y < throttleRect.y + throttleRect.height + 40) {
                             float centerY = throttleRect.y + throttleRect.height / 2;
                             touchThrottle = com.badlogic.gdx.math.MathUtils.clamp((touch.y - centerY) / (throttleRect.height / 2), -1f, 1f);
+
+                            // Neutral Snap for Sticky
+                            if (isSticky && Math.abs(touchThrottle) < 0.12f) touchThrottle = 0;
+
+                            stickyThrottleValue = touchThrottle;
                             throttleTouched = true;
                         }
                     } else {
@@ -251,6 +260,7 @@ public class InputController {
                         if (btnSound.contains(touch)) soundToggled = true;
                         if (btnVibrate.contains(touch)) vibrateToggled = true;
                         if (btnControls.contains(touch)) controlModeToggled = true;
+                        if (btnThrottleMode.contains(touch)) throttleModeToggled = true;
                     } else if (state == DockMasterGame.GameState.GARAGE) {
                         if (btnBack.contains(touch)) titlePressed = true;
                         if (btnRepair.contains(touch)) repairPressed = true;
@@ -276,7 +286,11 @@ public class InputController {
         }
 
         // Combine Keyboard + Touch
-        if (Math.abs(targetThrottle) < 0.01f) targetThrottle = touchThrottle;
+        // Keyboard overrides touch if active
+        if (Math.abs(targetThrottle) < 0.01f) {
+            if (boatMode && isSticky) targetThrottle = stickyThrottleValue;
+            else targetThrottle = touchThrottle;
+        }
         if (Math.abs(targetSteering) < 0.01f) targetSteering = touchSteering;
 
         // Deadzones
@@ -336,6 +350,12 @@ public class InputController {
                 shape.rect(throttleRect.x, throttleRect.y, throttleRect.width, throttleRect.height);
                 shape.rect(throttleRect.x, throttleRect.y + throttleRect.height / 2 - 1, throttleRect.width, 2);
 
+                // Neutral Snap Highlight
+                if (Math.abs(throttleValue) < 0.05f) {
+                    shape.setColor(1, 1, 1, 0.2f);
+                    shape.rect(throttleRect.x + 2, throttleRect.y + throttleRect.height / 2 - 10, throttleRect.width - 4, 20);
+                }
+
                 // Throttle knob
                 float knobY = (throttleRect.y + throttleRect.height / 2) + (throttleValue * (throttleRect.height / 2 - 20));
                 shape.setColor(throttleValue > 0.05f ? Color.LIME : (throttleValue < -0.05f ? Color.ORANGE : Color.WHITE));
@@ -368,6 +388,7 @@ public class InputController {
             drawButton(shape, btnSound, false);
             drawButton(shape, btnVibrate, false);
             drawButton(shape, btnControls, false);
+            drawButton(shape, btnThrottleMode, false);
         } else if (state == DockMasterGame.GameState.GARAGE) {
             drawButton(shape, btnBack, false);
             drawButton(shape, btnRepair, false);
@@ -399,16 +420,20 @@ public class InputController {
     public void drawLabels(SpriteBatch batch, BitmapFont font, DockMasterGame.GameState state, LevelManager lm, ProgressManager pm, BoatCatalog bc, boolean boatTotaled, TextureManager tm) {
         font.setColor(Color.WHITE);
         String controlMode = pm.getControlMode();
+        String throttleMode = pm.getThrottleMode();
         if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
             if (controlMode.equals("boat")) {
                 font.draw(batch, "STEER " + (int)(Math.abs(steeringValue)*100) + "% " + (steeringValue < 0 ? "L" : "R"), steeringCenterX - 45, steeringCenterY + steeringRadius + 25);
 
-                String tLabel = "N";
+                String tLabel = "NEUTRAL";
                 if (throttleValue > 0.05f) tLabel = "FWD " + (int)(throttleValue*100) + "%";
                 else if (throttleValue < -0.05f) tLabel = "REV " + (int)(Math.abs(throttleValue)*100) + "%";
-                font.draw(batch, tLabel, throttleRect.x - 20, throttleRect.y + throttleRect.height + 25);
+                font.draw(batch, tLabel, throttleRect.x - 30, throttleRect.y + throttleRect.height + 25);
 
                 font.draw(batch, "N", throttleRect.x - 20, throttleRect.y + throttleRect.height / 2 + 5);
+                font.getData().setScale(0.7f);
+                font.draw(batch, "MODE: " + throttleMode.toUpperCase(), throttleRect.x - 35, throttleRect.y - 30);
+                font.getData().setScale(1.2f);
             } else {
                 drawCenteredLabel(batch, font, "LEFT", btnLeft);
                 drawCenteredLabel(batch, font, "RIGHT", btnRight);
@@ -437,6 +462,7 @@ public class InputController {
             drawCenteredLabel(batch, font, "SOUND: " + (pm.isSoundEnabled() ? "ON" : "OFF"), btnSound);
             drawCenteredLabel(batch, font, "VIBRATE: " + (pm.isVibrationEnabled() ? "ON" : "OFF"), btnVibrate);
             drawCenteredLabel(batch, font, "CONTROLS: " + pm.getControlMode().toUpperCase(), btnControls);
+            drawCenteredLabel(batch, font, "THROTTLE: " + pm.getThrottleMode().toUpperCase(), btnThrottleMode);
         } else if (state == DockMasterGame.GameState.GARAGE) {
             drawCenteredLabel(batch, font, "BACK", btnBack);
             drawCenteredLabel(batch, font, "REPAIR", btnRepair);
@@ -527,6 +553,14 @@ public class InputController {
 
     public float getThrottleValue() { return throttleValue; }
     public float getSteeringValue() { return steeringValue; }
+
+    public void resetAnalog() {
+        throttleValue = 0;
+        steeringValue = 0;
+        rawThrottleValue = 0;
+        rawSteeringValue = 0;
+        stickyThrottleValue = 0;
+    }
 
     private void drawUpgradeLabel(SpriteBatch batch, BitmapFont font, String title, Rectangle rect, int currentLevel) {
         font.setColor(Color.YELLOW);

@@ -125,6 +125,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         dock.setLevel(currentLevel);
         levelTimer = 0;
+        inputController.resetAnalog();
         tutorialManager.reset();
         wakeTrail.clear();
         floatingText.clear();
@@ -177,6 +178,7 @@ public class DockMasterGame extends ApplicationAdapter {
 
         dock.setLevel(level);
         levelTimer = 0;
+        inputController.resetAnalog();
         currentStars = 0;
         starBonus = 0;
         introTimer = 3.0f;
@@ -205,7 +207,7 @@ public class DockMasterGame extends ApplicationAdapter {
             if (progressManager.getBoatDamage(profile.id) >= 100) boatTotaled = true;
         }
 
-        inputController.update(delta, hudViewport, state, boatTotaled, progressManager.getControlMode());
+        inputController.update(delta, hudViewport, state, boatTotaled, progressManager.getControlMode(), progressManager.getThrottleMode());
         handleTransitions();
 
         if (statusTimer > 0) statusTimer -= delta;
@@ -413,6 +415,13 @@ public class DockMasterGame extends ApplicationAdapter {
             String nextMode = progressManager.getControlMode().equals("buttons") ? "boat" : "buttons";
             progressManager.setControlMode(nextMode);
             soundManager.play("click");
+        }
+
+        if (inputController.throttleModeToggled) {
+            String nextTMode = progressManager.getThrottleMode().equals("spring") ? "sticky" : "spring";
+            progressManager.setThrottleMode(nextTMode);
+            soundManager.play("click");
+            if (nextTMode.equals("sticky")) showStatus("Sticky throttle engaged. Tap N to neutral.");
         }
 
         if (inputController.pausePressed) {
@@ -945,6 +954,12 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "SETTINGS", HUD_WIDTH / 2 - 40, HUD_HEIGHT - 40);
         font.setColor(Color.WHITE);
         font.draw(batch, "Adjust your experience preferences.", HUD_WIDTH / 2 - 140, HUD_HEIGHT - 80);
+
+        font.draw(batch, "BACK", HUD_WIDTH / 2 - 20, HUD_HEIGHT - 55);
+        font.draw(batch, "SOUND: " + (progressManager.isSoundEnabled() ? "ON" : "OFF"), HUD_WIDTH / 2 - 45, 335);
+        font.draw(batch, "VIBRATE: " + (progressManager.isVibrationEnabled() ? "ON" : "OFF"), HUD_WIDTH / 2 - 50, 235);
+        font.draw(batch, "CONTROLS: " + progressManager.getControlMode().toUpperCase(), HUD_WIDTH / 2 - 75, 145);
+        font.draw(batch, "THROTTLE: " + progressManager.getThrottleMode().toUpperCase(), HUD_WIDTH / 2 - 75, 85);
     }
 
     private void drawLevelIntroShapes() {
@@ -1285,11 +1300,12 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Dock Tex: " + dockTex, x, y - 320);
 
         font.draw(batch, "Control Mode: " + progressManager.getControlMode().toUpperCase(), x, y - 340);
-        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 360);
-        font.draw(batch, "Visual Size: " + (int)(boat.profile.length * boat.profile.visualScale) + "x" + (int)(boat.profile.width * boat.profile.visualScale), x, y - 380);
-        font.draw(batch, "Collision Size: " + (int)boat.profile.length + "x" + (int)boat.profile.width, x, y - 400);
-        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 420);
-        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 440);
+        font.draw(batch, "Throttle Mode: " + progressManager.getThrottleMode().toUpperCase(), x, y - 360);
+        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 380);
+        font.draw(batch, "Visual Size: " + (int)(boat.profile.length * boat.profile.visualScale) + "x" + (int)(boat.profile.width * boat.profile.visualScale), x, y - 400);
+        font.draw(batch, "Collision Size: " + (int)boat.profile.length + "x" + (int)boat.profile.width, x, y - 420);
+        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 440);
+        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 460);
     }
 
     @Override
