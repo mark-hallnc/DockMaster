@@ -17,6 +17,17 @@ public class Boat {
     public boolean active = true;
     public long boatValue;
 
+    public float currentThrottle = 0f;
+    private float steerageFactor = 0f;
+
+    // Physics Tuning Constants
+    private static final float THROTTLE_RAMP_UP = 2.0f;
+    private static final float THROTTLE_RAMP_DOWN = 3.5f;
+    private static final float MIN_STEERAGE_SPEED = 8f;
+    private static final float FULL_STEERAGE_SPEED = 100f;
+    private static final float REVERSE_STEERING_MULTIPLIER = 0.6f;
+    private static final float COAST_STEERING_MULTIPLIER = 0.5f;
+
     public Polygon bounds;
     private float flashTimer = 0;
 
@@ -73,6 +84,17 @@ public class Boat {
         previousY = y;
         previousAngle = angle;
 
+        // 1. Throttle Ramping
+        float targetT = input.throttleValue;
+        float rampRate = (Math.abs(targetT) > Math.abs(currentThrottle)) ? THROTTLE_RAMP_UP : THROTTLE_RAMP_DOWN;
+        if (targetT < 0 && currentThrottle <= 0) rampRate = THROTTLE_RAMP_UP * 0.8f; // Reverse is slightly slower to engage
+
+        if (currentThrottle < targetT) {
+            currentThrottle = Math.min(targetT, currentThrottle + rampRate * delta);
+        } else if (currentThrottle > targetT) {
+            currentThrottle = Math.max(targetT, currentThrottle - rampRate * delta);
+        }
+
         Vector2 forwardDir = new Vector2(MathUtils.cosDeg(angle), MathUtils.sinDeg(angle));
         float forwardVelocityMag = velocity.dot(forwardDir);
 
@@ -82,23 +104,41 @@ public class Boat {
         float effectiveTurnRate = profile.turnRate * (1.0f + steeringLevel * 0.05f);
         float effectiveReverseThrust = profile.reverseThrust * (1.0f + reverseLevel * 0.07f);
 
-        // Steering - No steerage at dead stop
-        boolean hasSteerage = Math.abs(input.throttleValue) > 0.05f || Math.abs(forwardVelocityMag) > 8f || velocity.len() > 15f;
-        if (hasSteerage) {
+        // 2. Steerage Logic (Speed/Flow dependent steering)
+        float speed = velocity.len();
+        float speedSteerage = MathUtils.clamp((speed - MIN_STEERAGE_SPEED) / (FULL_STEERAGE_SPEED - MIN_STEERAGE_SPEED), 0f, 1f);
+
+        // Prop wash: small steerage even at zero speed if throttle is applied
+        float propWash = MathUtils.clamp(Math.abs(currentThrottle) * 0.3f, 0, 0.3f);
+        steerageFactor = Math.max(speedSteerage, propWash);
+
+        if (steerageFactor > 0.01f) {
             float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, profile.lowSpeedTurnFactor, 1.0f);
-            angle -= effectiveTurnRate * input.steeringValue * turnModifier * delta;
+            float steeringEffect = effectiveTurnRate * steerageFactor * turnModifier;
+
+            // Coasting/Reverse Multipliers
+            if (Math.abs(currentThrottle) < 0.05f) {
+                steeringEffect *= COAST_STEERING_MULTIPLIER;
+            } else if (currentThrottle < -0.05f) {
+                steeringEffect *= REVERSE_STEERING_MULTIPLIER;
+            }
+
+            angle -= steeringEffect * input.steeringValue * delta;
         }
 
-        // Thrust
-        if (input.throttleValue > 0) {
+        // 3. Thrust Application (Curved for low-speed precision)
+        float throttleSign = Math.signum(currentThrottle);
+        float curvedThrottle = throttleSign * (float)Math.pow(Math.abs(currentThrottle), 1.2f);
+
+        if (curvedThrottle > 0) {
             velocity.add(
-                forwardDir.x * effectiveThrust * input.throttleValue * delta,
-                forwardDir.y * effectiveThrust * input.throttleValue * delta
+                forwardDir.x * effectiveThrust * curvedThrottle * delta,
+                forwardDir.y * effectiveThrust * curvedThrottle * delta
             );
-        } else if (input.throttleValue < 0) {
+        } else if (curvedThrottle < 0) {
             velocity.add(
-                forwardDir.x * (effectiveReverseThrust * input.throttleValue) * delta,
-                forwardDir.y * (effectiveReverseThrust * input.throttleValue) * delta
+                forwardDir.x * (effectiveReverseThrust * curvedThrottle) * delta,
+                forwardDir.y * (effectiveReverseThrust * curvedThrottle) * delta
             );
         }
 

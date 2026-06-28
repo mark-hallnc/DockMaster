@@ -345,7 +345,7 @@ public class DockMasterGame extends ApplicationAdapter {
         boolean motorShouldRun = (state == GameState.PLAYING || state == GameState.TUTORIAL) && boat != null && boat.active;
         soundManager.updateMotorLoop(motorShouldRun, delta,
             boat != null ? boat.velocity.len() : 0,
-            inputController.throttleValue);
+            boat != null ? boat.currentThrottle : 0);
 
         ScreenUtils.clear(0.1f, 0.3f, 0.5f, 1f);
 
