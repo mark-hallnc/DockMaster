@@ -17,6 +17,21 @@ public class InputController {
     public boolean forward, reverse, left, right;
     public float throttleValue = 0f; // -1.0 (REV) to 1.0 (FWD)
     public float steeringValue = 0f; // -1.0 (LEFT) to 1.0 (RIGHT)
+    private float rawThrottleValue = 0f;
+    private float rawSteeringValue = 0f;
+
+    // Control Tuning Constants
+    private static final float THROTTLE_DEADZONE = 0.08f;
+    private static final float STEERING_DEADZONE = 0.08f;
+    private static final float THROTTLE_CURVE = 1.4f;
+    private static final float STEERING_CURVE = 1.2f;
+    private static final float THROTTLE_SMOOTHING = 8f;
+    private static final float STEERING_SMOOTHING = 12f;
+
+    private int throttlePointer = -1;
+    private int steeringPointer = -1;
+    private boolean throttleSpringReturn = true;
+
     public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed, trainingPressed, skipPressed, pausePressed;
     public boolean controlModeToggled;
     public boolean upgradeEnginePressed, upgradeSteeringPressed, upgradeHullPressed, upgradeReversePressed;
@@ -115,7 +130,7 @@ public class InputController {
         }
     }
 
-    public void update(Viewport hudViewport, DockMasterGame.GameState state, boolean boatTotaled, String controlMode) {
+    public void update(float delta, Viewport hudViewport, DockMasterGame.GameState state, boolean boatTotaled, String controlMode) {
         nextPressed = false;
         retryPressed = false;
         levelSelectPressed = false;
@@ -138,22 +153,22 @@ public class InputController {
         selectedLevelIndex = -1;
         selectedBoatIndex = -1;
 
-        // Reset Analog
-        throttleValue = 0f;
-        steeringValue = 0f;
-
-        // Keyboard Analog mapping
+        // --- Keyboard (Always Active, overrides target) ---
         boolean kFwd = Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP);
         boolean kRev = Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN);
         boolean kLeft = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT);
         boolean kRight = Gdx.input.isKeyPressed(Input.Keys.D) || Gdx.input.isKeyPressed(Input.Keys.RIGHT);
 
-        if (kFwd && !kRev) throttleValue = 1.0f;
-        else if (kRev && !kFwd) throttleValue = -1.0f;
+        float targetThrottle = 0f;
+        float targetSteering = 0f;
 
-        if (kRight && !kLeft) steeringValue = 1.0f;
-        else if (kLeft && !kRight) steeringValue = -1.0f;
+        if (kFwd && !kRev) targetThrottle = 1.0f;
+        else if (kRev && !kFwd) targetThrottle = -1.0f;
 
+        if (kRight && !kLeft) targetSteering = 1.0f;
+        else if (kLeft && !kRight) targetSteering = -1.0f;
+
+        // Keyboard One-shots
         if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             if (state == DockMasterGame.GameState.GARAGE) repairPressed = true;
             else if (!boatTotaled) retryPressed = true;
@@ -176,34 +191,40 @@ public class InputController {
                 titlePressed = true;
             }
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) debugToggled = !debugToggled;
 
-        if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) {
-            debugToggled = !debugToggled;
-        }
+        // --- Touch ---
+        boolean boatMode = "boat".equals(controlMode);
+        float touchThrottle = 0;
+        float touchSteering = 0;
+        boolean throttleTouched = false;
+        boolean steeringTouched = false;
 
-        // Touch
         for (int i = 0; i < 5; i++) {
             if (Gdx.input.isTouched(i)) {
                 Vector2 touch = new Vector2(Gdx.input.getX(i), Gdx.input.getY(i));
                 hudViewport.unproject(touch);
 
                 if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
-                    if (controlMode.equals("boat")) {
-                        // Steering wheel / pad
-                        if (Vector2.dst(touch.x, touch.y, steeringCenterX, steeringCenterY) < steeringRadius + 40) {
-                            steeringValue = com.badlogic.gdx.math.MathUtils.clamp((touch.x - steeringCenterX) / steeringRadius, -1f, 1f);
+                    if (boatMode) {
+                        // Steering area (padded)
+                        if (Vector2.dst(touch.x, touch.y, steeringCenterX, steeringCenterY) < steeringRadius + 50) {
+                            touchSteering = com.badlogic.gdx.math.MathUtils.clamp((touch.x - steeringCenterX) / steeringRadius, -1f, 1f);
+                            steeringTouched = true;
                         }
-                        // Throttle lever
-                        if (throttleRect.contains(touch.x, touch.y) || (Math.abs(touch.x - (throttleRect.x + throttleRect.width/2)) < 50 && touch.y > throttleRect.y - 20 && touch.y < throttleRect.y + throttleRect.height + 20)) {
+                        // Throttle area (padded)
+                        if (touch.x > throttleRect.x - 40 && touch.x < throttleRect.x + throttleRect.width + 40 &&
+                            touch.y > throttleRect.y - 40 && touch.y < throttleRect.y + throttleRect.height + 40) {
                             float centerY = throttleRect.y + throttleRect.height / 2;
-                            throttleValue = com.badlogic.gdx.math.MathUtils.clamp((touch.y - centerY) / (throttleRect.height / 2), -1f, 1f);
+                            touchThrottle = com.badlogic.gdx.math.MathUtils.clamp((touch.y - centerY) / (throttleRect.height / 2), -1f, 1f);
+                            throttleTouched = true;
                         }
                     } else {
                         // Button mode
-                        if (btnLeft.contains(touch)) steeringValue = -1.0f;
-                        if (btnRight.contains(touch)) steeringValue = 1.0f;
-                        if (btnFwd.contains(touch)) throttleValue = 1.0f;
-                        if (btnRev.contains(touch)) throttleValue = -1.0f;
+                        if (btnLeft.contains(touch)) { touchSteering = -1.0f; steeringTouched = true; }
+                        if (btnRight.contains(touch)) { touchSteering = 1.0f; steeringTouched = true; }
+                        if (btnFwd.contains(touch)) { touchThrottle = 1.0f; throttleTouched = true; }
+                        if (btnRev.contains(touch)) { touchThrottle = -1.0f; throttleTouched = true; }
                     }
 
                     if (Gdx.input.justTouched()) {
@@ -211,6 +232,7 @@ public class InputController {
                         if (state == DockMasterGame.GameState.TUTORIAL && btnSkip.contains(touch)) skipPressed = true;
                     }
                 } else if (Gdx.input.justTouched()) {
+                    // Menu clicks
                     if (state == DockMasterGame.GameState.TITLE) {
                         if (btnStart.contains(touch)) startPressed = true;
                         if (btnTraining.contains(touch)) trainingPressed = true;
@@ -238,14 +260,10 @@ public class InputController {
                         if (btnUpgradeReverse.contains(touch)) upgradeReversePressed = true;
                     } else if (state == DockMasterGame.GameState.LEVEL_SELECT) {
                         if (btnBack.contains(touch)) titlePressed = true;
-                        for (int j = 0; j < levelButtons.size(); j++) {
-                            if (levelButtons.get(j).contains(touch)) selectedLevelIndex = j;
-                        }
+                        for (int j = 0; j < levelButtons.size(); j++) if (levelButtons.get(j).contains(touch)) selectedLevelIndex = j;
                     } else if (state == DockMasterGame.GameState.BOAT_SELECT) {
                         if (btnBack.contains(touch)) titlePressed = true;
-                        for (int j = 0; j < boatButtons.size(); j++) {
-                            if (boatButtons.get(j).contains(touch)) selectedBoatIndex = j;
-                        }
+                        for (int j = 0; j < boatButtons.size(); j++) if (boatButtons.get(j).contains(touch)) selectedBoatIndex = j;
                     } else if (state == DockMasterGame.GameState.DOCKED || state == DockMasterGame.GameState.FAILED) {
                         if (btnRetry.contains(touch) && !boatTotaled) retryPressed = true;
                         if (btnNext.contains(touch) && !boatTotaled) nextPressed = true;
@@ -257,11 +275,26 @@ public class InputController {
             }
         }
 
-        // Apply Dead Zones & Clamp
-        if (Math.abs(throttleValue) < 0.05f) throttleValue = 0;
-        if (Math.abs(steeringValue) < 0.05f) steeringValue = 0;
+        // Combine Keyboard + Touch
+        if (Math.abs(targetThrottle) < 0.01f) targetThrottle = touchThrottle;
+        if (Math.abs(targetSteering) < 0.01f) targetSteering = touchSteering;
 
-        // Sync Booleans for compatibility
+        // Deadzones
+        if (Math.abs(targetThrottle) < THROTTLE_DEADZONE) targetThrottle = 0;
+        if (Math.abs(targetSteering) < STEERING_DEADZONE) targetSteering = 0;
+
+        // Curves
+        rawThrottleValue = Math.signum(targetThrottle) * (float)Math.pow(Math.abs(targetThrottle), THROTTLE_CURVE);
+        rawSteeringValue = Math.signum(targetSteering) * (float)Math.pow(Math.abs(targetSteering), STEERING_CURVE);
+
+        // Smoothing
+        float tSmooth = (kFwd || kRev || !boatMode) ? 100f : THROTTLE_SMOOTHING; // Snappy for keys/buttons
+        float sSmooth = (kLeft || kRight || !boatMode) ? 100f : STEERING_SMOOTHING;
+
+        throttleValue += (rawThrottleValue - throttleValue) * Math.min(1f, delta * tSmooth);
+        steeringValue += (rawSteeringValue - steeringValue) * Math.min(1f, delta * sSmooth);
+
+        // Sync booleans
         forward = throttleValue > 0.1f;
         reverse = throttleValue < -0.1f;
         left = steeringValue < -0.1f;
@@ -271,29 +304,41 @@ public class InputController {
     public void drawShapes(ShapeRenderer shape, DockMasterGame.GameState state, String currentBoatId, BoatCatalog bc, boolean boatTotaled, String controlMode) {
         if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
             if (controlMode.equals("boat")) {
-                // Steering wheel / pad track
+                // --- Steering Wheel / Pad ---
                 shape.setColor(0.15f, 0.15f, 0.2f, 0.5f);
                 shape.circle(steeringCenterX, steeringCenterY, steeringRadius);
                 shape.setColor(1, 1, 1, 0.3f);
-                shape.circle(steeringCenterX, steeringCenterY, steeringRadius, 32); // Outline
+                shape.circle(steeringCenterX, steeringCenterY, steeringRadius, 32);
+
+                // Indicator line
+                shape.setColor(Color.WHITE);
+                float steerAngle = -steeringValue * 45f;
+                float lx = (float)Math.sin(Math.toRadians(steerAngle)) * (steeringRadius - 10);
+                float ly = (float)Math.cos(Math.toRadians(steerAngle)) * (steeringRadius - 10);
+                shape.line(steeringCenterX, steeringCenterY, steeringCenterX + lx, steeringCenterY + ly);
 
                 // Steering knob
                 float knobX = steeringCenterX + steeringValue * (steeringRadius - 20);
                 shape.setColor(0.3f, 0.5f, 0.8f, 0.8f);
                 shape.circle(knobX, steeringCenterY, 25);
 
-                // Throttle track
+                // --- Throttle Lever ---
                 shape.setColor(0.15f, 0.15f, 0.2f, 0.5f);
                 shape.rect(throttleRect.x, throttleRect.y, throttleRect.width, throttleRect.height);
-                shape.setColor(1, 1, 1, 0.3f);
-                shape.rect(throttleRect.x, throttleRect.y, throttleRect.width, throttleRect.height); // Outline
 
-                // Neutral line
+                // Ranges
+                shape.setColor(0, 1, 0, 0.05f);
+                shape.rect(throttleRect.x, throttleRect.y + throttleRect.height/2, throttleRect.width, throttleRect.height/2);
+                shape.setColor(1, 0, 0, 0.05f);
+                shape.rect(throttleRect.x, throttleRect.y, throttleRect.width, throttleRect.height/2);
+
+                shape.setColor(1, 1, 1, 0.3f);
+                shape.rect(throttleRect.x, throttleRect.y, throttleRect.width, throttleRect.height);
                 shape.rect(throttleRect.x, throttleRect.y + throttleRect.height / 2 - 1, throttleRect.width, 2);
 
                 // Throttle knob
                 float knobY = (throttleRect.y + throttleRect.height / 2) + (throttleValue * (throttleRect.height / 2 - 20));
-                shape.setColor(0.3f, 0.5f, 0.8f, 0.8f);
+                shape.setColor(throttleValue > 0.05f ? Color.LIME : (throttleValue < -0.05f ? Color.ORANGE : Color.WHITE));
                 shape.rect(throttleRect.x + 5, knobY - 15, throttleRect.width - 10, 30);
             } else {
                 drawButton(shape, btnLeft, left);
@@ -356,10 +401,14 @@ public class InputController {
         String controlMode = pm.getControlMode();
         if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
             if (controlMode.equals("boat")) {
-                font.draw(batch, "STEERING", steeringCenterX - 35, steeringCenterY + steeringRadius + 20);
-                font.draw(batch, "FWD", throttleRect.x + 15, throttleRect.y + throttleRect.height + 20);
+                font.draw(batch, "STEER " + (int)(Math.abs(steeringValue)*100) + "% " + (steeringValue < 0 ? "L" : "R"), steeringCenterX - 45, steeringCenterY + steeringRadius + 25);
+
+                String tLabel = "N";
+                if (throttleValue > 0.05f) tLabel = "FWD " + (int)(throttleValue*100) + "%";
+                else if (throttleValue < -0.05f) tLabel = "REV " + (int)(Math.abs(throttleValue)*100) + "%";
+                font.draw(batch, tLabel, throttleRect.x - 20, throttleRect.y + throttleRect.height + 25);
+
                 font.draw(batch, "N", throttleRect.x - 20, throttleRect.y + throttleRect.height / 2 + 5);
-                font.draw(batch, "REV", throttleRect.x + 15, throttleRect.y - 10);
             } else {
                 drawCenteredLabel(batch, font, "LEFT", btnLeft);
                 drawCenteredLabel(batch, font, "RIGHT", btnRight);

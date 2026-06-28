@@ -205,7 +205,7 @@ public class DockMasterGame extends ApplicationAdapter {
             if (progressManager.getBoatDamage(profile.id) >= 100) boatTotaled = true;
         }
 
-        inputController.update(hudViewport, state, boatTotaled, progressManager.getControlMode());
+        inputController.update(delta, hudViewport, state, boatTotaled, progressManager.getControlMode());
         handleTransitions();
 
         if (statusTimer > 0) statusTimer -= delta;
@@ -1253,8 +1253,8 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Pos: " + (int)boat.x + ", " + (int)boat.y, x, y - 20);
         font.draw(batch, "Vel: " + (int)boat.velocity.len(), x, y - 40);
         font.draw(batch, "Angle: " + (int)boat.angle, x, y - 60);
-        font.draw(batch, "Throttle: " + String.format("%.2f", inputController.throttleValue), x, y - 80);
-        font.draw(batch, "Steer: " + String.format("%.2f", inputController.steeringValue), x, y - 100);
+        font.draw(batch, "Raw Throttle: " + String.format("%.2f", inputController.getThrottleValue()), x, y - 80);
+        font.draw(batch, "Raw Steer: " + String.format("%.2f", inputController.getSteeringValue()), x, y - 100);
 
         if (dock.slipZone != null) {
             font.draw(batch, "Target: " + (int)dock.slipZone.x + "," + (int)dock.slipZone.y + " (Angle: " + (int)dock.targetAngle + ")", x, y - 120);
