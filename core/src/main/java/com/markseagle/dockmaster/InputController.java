@@ -203,9 +203,10 @@ public class InputController {
         boolean isSticky = "sticky".equals(throttleMode);
         float touchThrottle = 0;
         float touchSteering = 0;
-        boolean throttleTouched = false;
-        boolean steeringTouched = false;
+        boolean throttleActive = false;
+        boolean steeringActive = false;
 
+        // Pointer Tracking Logic
         for (int i = 0; i < 5; i++) {
             if (Gdx.input.isTouched(i)) {
                 Vector2 touch = new Vector2(Gdx.input.getX(i), Gdx.input.getY(i));
@@ -213,29 +214,36 @@ public class InputController {
 
                 if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
                     if (boatMode) {
-                        // Steering area (padded)
-                        if (Vector2.dst(touch.x, touch.y, steeringCenterX, steeringCenterY) < steeringRadius + 50) {
-                            touchSteering = com.badlogic.gdx.math.MathUtils.clamp((touch.x - steeringCenterX) / steeringRadius, -1f, 1f);
-                            steeringTouched = true;
+                        // Start tracking?
+                        if (Gdx.input.justTouched()) {
+                            if (Vector2.dst(touch.x, touch.y, steeringCenterX, steeringCenterY) < steeringRadius + 40) {
+                                steeringPointer = i;
+                            } else if (throttleRect.contains(touch.x, touch.y) || (Math.abs(touch.x - (throttleRect.x + throttleRect.width/2)) < 50)) {
+                                throttlePointer = i;
+                            }
                         }
-                        // Throttle area (padded)
-                        if (touch.x > throttleRect.x - 40 && touch.x < throttleRect.x + throttleRect.width + 40 &&
-                            touch.y > throttleRect.y - 40 && touch.y < throttleRect.y + throttleRect.height + 40) {
+
+                        // Update tracked pointers
+                        if (i == steeringPointer) {
+                            touchSteering = com.badlogic.gdx.math.MathUtils.clamp((touch.x - steeringCenterX) / steeringRadius, -1f, 1f);
+                            steeringActive = true;
+                        }
+                        if (i == throttlePointer) {
                             float centerY = throttleRect.y + throttleRect.height / 2;
                             touchThrottle = com.badlogic.gdx.math.MathUtils.clamp((touch.y - centerY) / (throttleRect.height / 2), -1f, 1f);
 
-                            // Neutral Snap for Sticky
-                            if (isSticky && Math.abs(touchThrottle) < 0.12f) touchThrottle = 0;
+                            // Neutral Snap
+                            if (Math.abs(touchThrottle) < 0.15f) touchThrottle = 0;
 
                             stickyThrottleValue = touchThrottle;
-                            throttleTouched = true;
+                            throttleActive = true;
                         }
                     } else {
-                        // Button mode
-                        if (btnLeft.contains(touch)) { touchSteering = -1.0f; steeringTouched = true; }
-                        if (btnRight.contains(touch)) { touchSteering = 1.0f; steeringTouched = true; }
-                        if (btnFwd.contains(touch)) { touchThrottle = 1.0f; throttleTouched = true; }
-                        if (btnRev.contains(touch)) { touchThrottle = -1.0f; throttleTouched = true; }
+                        // Button mode (original)
+                        if (btnLeft.contains(touch)) { touchSteering = -1.0f; steeringActive = true; }
+                        if (btnRight.contains(touch)) { touchSteering = 1.0f; steeringActive = true; }
+                        if (btnFwd.contains(touch)) { touchThrottle = 1.0f; throttleActive = true; }
+                        if (btnRev.contains(touch)) { touchThrottle = -1.0f; throttleActive = true; }
                     }
 
                     if (Gdx.input.justTouched()) {
@@ -285,27 +293,33 @@ public class InputController {
                         if (btnTitleResults.contains(touch)) titlePressed = true;
                     }
                 }
+            } else {
+                // Pointer released
+                if (i == steeringPointer) steeringPointer = -1;
+                if (i == throttlePointer) throttlePointer = -1;
             }
         }
 
         // Combine Keyboard + Touch
-        // Keyboard overrides touch if active
-        if (Math.abs(targetThrottle) < 0.01f) {
-            if (boatMode && isSticky) targetThrottle = stickyThrottleValue;
-            else targetThrottle = touchThrottle;
-        }
-        if (Math.abs(targetSteering) < 0.01f) targetSteering = touchSteering;
+        float targetT = kFwd ? 1.0f : (kRev ? -1.0f : 0f);
+        float targetS = kRight ? 1.0f : (kLeft ? -1.0f : 0f);
 
-        // Deadzones
-        if (Math.abs(targetThrottle) < THROTTLE_DEADZONE) targetThrottle = 0;
-        if (Math.abs(targetSteering) < STEERING_DEADZONE) targetSteering = 0;
+        if (Math.abs(targetT) < 0.01f) {
+            if (boatMode && isSticky) targetT = stickyThrottleValue;
+            else targetT = touchThrottle;
+        }
+        if (Math.abs(targetS) < 0.01f) targetS = touchSteering;
+
+        // Apply Dead Zones
+        if (Math.abs(targetT) < THROTTLE_DEADZONE) targetT = 0;
+        if (Math.abs(targetS) < STEERING_DEADZONE) targetS = 0;
 
         // Curves
-        rawThrottleValue = Math.signum(targetThrottle) * (float)Math.pow(Math.abs(targetThrottle), THROTTLE_CURVE);
-        rawSteeringValue = Math.signum(targetSteering) * (float)Math.pow(Math.abs(targetSteering), STEERING_CURVE);
+        rawThrottleValue = Math.signum(targetT) * (float)Math.pow(Math.abs(targetT), THROTTLE_CURVE);
+        rawSteeringValue = Math.signum(targetS) * (float)Math.pow(Math.abs(targetS), STEERING_CURVE);
 
         // Smoothing
-        float tSmooth = (kFwd || kRev || !boatMode) ? 100f : THROTTLE_SMOOTHING; // Snappy for keys/buttons
+        float tSmooth = (kFwd || kRev || !boatMode) ? 100f : THROTTLE_SMOOTHING;
         float sSmooth = (kLeft || kRight || !boatMode) ? 100f : STEERING_SMOOTHING;
 
         throttleValue += (rawThrottleValue - throttleValue) * Math.min(1f, delta * tSmooth);
@@ -321,20 +335,33 @@ public class InputController {
     public void drawShapes(ShapeRenderer shape, DockMasterGame.GameState state, String currentBoatId, BoatCatalog bc, boolean boatTotaled, String controlMode) {
         if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
             if (controlMode.equals("boat")) {
-                // --- Steering Wheel / Pad ---
+                // --- Steering Wheel ---
                 shape.setColor(0.15f, 0.15f, 0.2f, 0.5f);
                 shape.circle(steeringCenterX, steeringCenterY, steeringRadius);
                 shape.setColor(1, 1, 1, 0.3f);
                 shape.circle(steeringCenterX, steeringCenterY, steeringRadius, 32);
 
-                // Indicator line
-                shape.setColor(Color.WHITE);
-                float steerAngle = -steeringValue * 45f;
-                float lx = (float)Math.sin(Math.toRadians(steerAngle)) * (steeringRadius - 10);
-                float ly = (float)Math.cos(Math.toRadians(steerAngle)) * (steeringRadius - 10);
-                shape.line(steeringCenterX, steeringCenterY, steeringCenterX + lx, steeringCenterY + ly);
+                // Hub
+                shape.setColor(0.4f, 0.4f, 0.4f, 0.8f);
+                shape.circle(steeringCenterX, steeringCenterY, 20);
 
-                // Steering knob
+                // Spokes
+                float visualAngle = -steeringValue * 70f;
+                shape.setColor(Color.WHITE);
+                for (int i = 0; i < 3; i++) {
+                    float spokeAngle = visualAngle + i * 120;
+                    float sx = (float)Math.sin(Math.toRadians(spokeAngle)) * (steeringRadius - 5);
+                    float sy = (float)Math.cos(Math.toRadians(spokeAngle)) * (steeringRadius - 5);
+                    shape.line(steeringCenterX, steeringCenterY, steeringCenterX + sx, steeringCenterY + sy);
+                }
+
+                // Top marker
+                float mx = (float)Math.sin(Math.toRadians(visualAngle)) * (steeringRadius + 5);
+                float my = (float)Math.cos(Math.toRadians(visualAngle)) * (steeringRadius + 5);
+                shape.setColor(Color.YELLOW);
+                shape.circle(steeringCenterX + mx, steeringCenterY + my, 5);
+
+                // Steering knob (follows thumb)
                 float knobX = steeringCenterX + steeringValue * (steeringRadius - 20);
                 shape.setColor(0.3f, 0.5f, 0.8f, 0.8f);
                 shape.circle(knobX, steeringCenterY, 25);
@@ -344,10 +371,10 @@ public class InputController {
                 shape.rect(throttleRect.x, throttleRect.y, throttleRect.width, throttleRect.height);
 
                 // Ranges
-                shape.setColor(0, 1, 0, 0.05f);
-                shape.rect(throttleRect.x, throttleRect.y + throttleRect.height/2, throttleRect.width, throttleRect.height/2);
-                shape.setColor(1, 0, 0, 0.05f);
-                shape.rect(throttleRect.x, throttleRect.y, throttleRect.width, throttleRect.height/2);
+                shape.setColor(0, 1, 0, 0.1f);
+                shape.rect(throttleRect.x + 5, throttleRect.y + throttleRect.height/2 + 10, throttleRect.width - 10, throttleRect.height/2 - 20);
+                shape.setColor(1, 0, 0, 0.1f);
+                shape.rect(throttleRect.x + 5, throttleRect.y + 10, throttleRect.width - 10, throttleRect.height/2 - 20);
 
                 shape.setColor(1, 1, 1, 0.3f);
                 shape.rect(throttleRect.x, throttleRect.y, throttleRect.width, throttleRect.height);
@@ -356,13 +383,15 @@ public class InputController {
                 // Neutral Snap Highlight
                 if (Math.abs(throttleValue) < 0.05f) {
                     shape.setColor(1, 1, 1, 0.2f);
-                    shape.rect(throttleRect.x + 2, throttleRect.y + throttleRect.height / 2 - 10, throttleRect.width - 4, 20);
+                    shape.rect(throttleRect.x + 2, throttleRect.y + throttleRect.height / 2 - 12, throttleRect.width - 4, 24);
                 }
 
-                // Throttle knob
-                float knobY = (throttleRect.y + throttleRect.height / 2) + (throttleValue * (throttleRect.height / 2 - 20));
+                // Throttle knob (lever handle)
+                float knobY = (throttleRect.y + throttleRect.height / 2) + (throttleValue * (throttleRect.height / 2 - 25));
+                shape.setColor(0.4f, 0.4f, 0.4f, 1f);
+                shape.rect(throttleRect.x - 10, knobY - 10, throttleRect.width + 20, 20);
                 shape.setColor(throttleValue > 0.05f ? Color.LIME : (throttleValue < -0.05f ? Color.ORANGE : Color.WHITE));
-                shape.rect(throttleRect.x + 5, knobY - 15, throttleRect.width - 10, 30);
+                shape.circle(throttleRect.x + throttleRect.width + 5, knobY, 15);
             } else {
                 drawButton(shape, btnLeft, left);
                 drawButton(shape, btnRight, right);
@@ -427,12 +456,19 @@ public class InputController {
         String throttleMode = pm.getThrottleMode();
         if (state == DockMasterGame.GameState.PLAYING || state == DockMasterGame.GameState.TUTORIAL) {
             if (controlMode.equals("boat")) {
-                font.draw(batch, "STEER " + (int)(Math.abs(steeringValue)*100) + "% " + (steeringValue < 0 ? "L" : "R"), steeringCenterX - 45, steeringCenterY + steeringRadius + 25);
+                font.draw(batch, "STEER", steeringCenterX - 25, steeringCenterY + steeringRadius + 40);
+                String sPerc = (int)(Math.abs(steeringValue)*100) + "% " + (steeringValue < 0 ? "L" : (steeringValue > 0 ? "R" : ""));
+                if (Math.abs(steeringValue) < 0.05f) sPerc = "CENTER";
+                font.getData().setScale(0.8f);
+                font.draw(batch, sPerc, steeringCenterX - 30, steeringCenterY - steeringRadius - 10);
+
+                font.getData().setScale(1.2f);
+                font.draw(batch, "THROTTLE", throttleRect.x - 15, throttleRect.y + throttleRect.height + 40);
 
                 String tLabel = "NEUTRAL";
                 if (throttleValue > 0.05f) tLabel = "FWD " + (int)(throttleValue*100) + "%";
                 else if (throttleValue < -0.05f) tLabel = "REV " + (int)(Math.abs(throttleValue)*100) + "%";
-                font.draw(batch, tLabel, throttleRect.x - 30, throttleRect.y + throttleRect.height + 25);
+                font.draw(batch, tLabel, throttleRect.x - 30, throttleRect.y + throttleRect.height + 20);
 
                 font.draw(batch, "N", throttleRect.x - 20, throttleRect.y + throttleRect.height / 2 + 5);
                 font.getData().setScale(0.7f);
@@ -558,6 +594,8 @@ public class InputController {
 
     public float getThrottleValue() { return throttleValue; }
     public float getSteeringValue() { return steeringValue; }
+    public int getSteeringPointer() { return steeringPointer; }
+    public int getThrottlePointer() { return throttlePointer; }
 
     public void resetAnalog() {
         throttleValue = 0;

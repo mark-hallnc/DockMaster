@@ -106,7 +106,7 @@ public class Boat {
         float propWash = MathUtils.clamp(Math.abs(currentThrottle) * 0.3f, 0, 0.3f);
         steerageFactor = Math.max(speedSteerage, propWash);
 
-        if (steerageFactor > 0.01f) {
+        if (steerageFactor > 0.01f && Math.abs(input.steeringValue) > 0.01f) {
             float turnModifier = MathUtils.clamp(Math.abs(forwardVelocityMag) / 80f, profile.lowSpeedTurnFactor, 1.0f);
             float steeringEffect = effectiveTurnRate * steerageFactor * turnModifier;
 
@@ -117,7 +117,30 @@ public class Boat {
                 steeringEffect *= tuning.reverseSteeringMultiplier;
             }
 
-            angle -= steeringEffect * input.steeringValue * delta;
+            // Stern-biased Pivot Model
+            Vector2 sternBefore = getSternPos();
+
+            float angleDelta = -steeringEffect * input.steeringValue * delta;
+            angle += angleDelta;
+
+            // Speed-based blend
+            float speedFactor = MathUtils.clamp(speed / tuning.sternPivotFullSpeed, 0, 1);
+            float pivotBlend = MathUtils.lerp(tuning.lowSpeedSternPivotBlend, tuning.highSpeedSternPivotBlend, speedFactor);
+
+            if (pivotBlend > 0) {
+                // Calculate where the center would be if we pivoted 100% around the stern
+                float rad = angle * MathUtils.degreesToRadians;
+                float cos = (float)Math.cos(rad);
+                float sin = (float)Math.sin(rad);
+                float halfLen = profile.length / 2f;
+
+                float sternPivotCenterX = sternBefore.x + cos * halfLen;
+                float sternPivotCenterY = sternBefore.y + sin * halfLen;
+
+                // Blend from current center (which hasn't moved yet) to the stern-pivot center
+                x = MathUtils.lerp(x, sternPivotCenterX, pivotBlend);
+                y = MathUtils.lerp(y, sternPivotCenterY, pivotBlend);
+            }
         }
 
         // 3. Thrust Application (Curved for low-speed precision)
