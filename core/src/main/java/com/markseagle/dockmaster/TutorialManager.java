@@ -68,17 +68,22 @@ public class TutorialManager {
         return currentStep;
     }
 
-    public String getPrompt() {
+    public String getPrompt(String controlMode) {
         boolean isDesktop = Gdx.app.getType() == com.badlogic.gdx.Application.ApplicationType.Desktop;
+        boolean isBoat = "boat".equals(controlMode);
+
         switch (currentStep) {
             case THRUST:
-                return isDesktop ? "Hold W or UP to move forward." : "Hold FWD to move forward.";
+                if (isDesktop) return "Hold W or UP to move forward.";
+                return isBoat ? "Push throttle lever UP to move forward." : "Hold FWD to move forward.";
             case STEER:
-                return isDesktop ? "Use A/D or LEFT/RIGHT to steer." : "Use LEFT and RIGHT to steer.";
+                if (isDesktop) return "Use A/D or LEFT/RIGHT to steer.";
+                return isBoat ? "Drag wheel/pad left or right to steer." : "Use LEFT and RIGHT to steer.";
             case COAST:
                 return "Release throttle and let the boat coast.";
             case REVERSE:
-                return isDesktop ? "Hold S or DOWN to slow down or back up." : "Hold REV to slow down or back up.";
+                if (isDesktop) return "Hold S or DOWN to slow down or back up.";
+                return isBoat ? "Pull throttle lever DOWN for reverse." : "Hold REV to slow down or back up.";
             case ENTER_ZONE:
                 return "Enter the yellow docking zone slowly.";
             case DOCK:
@@ -90,8 +95,8 @@ public class TutorialManager {
         }
     }
 
-    public void draw(SpriteBatch batch, BitmapFont font, float width, float height) {
-        String prompt = getPrompt();
+    public void draw(SpriteBatch batch, BitmapFont font, float width, float height, String controlMode) {
+        String prompt = getPrompt(controlMode);
         if (prompt.isEmpty()) return;
 
         // Draw simple box

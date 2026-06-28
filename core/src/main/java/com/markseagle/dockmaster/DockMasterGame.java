@@ -205,7 +205,7 @@ public class DockMasterGame extends ApplicationAdapter {
             if (progressManager.getBoatDamage(profile.id) >= 100) boatTotaled = true;
         }
 
-        inputController.update(hudViewport, state, boatTotaled);
+        inputController.update(hudViewport, state, boatTotaled, progressManager.getControlMode());
         handleTransitions();
 
         if (statusTimer > 0) statusTimer -= delta;
@@ -407,6 +407,12 @@ public class DockMasterGame extends ApplicationAdapter {
             progressManager.setVibrationEnabled(!progressManager.isVibrationEnabled());
             soundManager.play("click");
             vibrate(100);
+        }
+
+        if (inputController.controlModeToggled) {
+            String nextMode = progressManager.getControlMode().equals("buttons") ? "boat" : "buttons";
+            progressManager.setControlMode(nextMode);
+            soundManager.play("click");
         }
 
         if (inputController.pausePressed) {
@@ -790,7 +796,7 @@ public class DockMasterGame extends ApplicationAdapter {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        inputController.drawShapes(shapeRenderer, state, progressManager.getSelectedBoatId(), boatCatalog, boatTotaled);
+        inputController.drawShapes(shapeRenderer, state, progressManager.getSelectedBoatId(), boatCatalog, boatTotaled, progressManager.getControlMode());
 
         if (state == GameState.TITLE) {
             if (!USE_TEXTURES || !textureManager.hasTexture("water_tile")) {
@@ -850,7 +856,7 @@ public class DockMasterGame extends ApplicationAdapter {
             drawSettingsText();
         } else if (state == GameState.TUTORIAL) {
             drawHUDText();
-            tutorialManager.draw(batch, font, HUD_WIDTH, HUD_HEIGHT);
+            tutorialManager.draw(batch, font, HUD_WIDTH, HUD_HEIGHT, progressManager.getControlMode());
             if (tutorialManager.getCurrentStep() == TutorialManager.Step.COMPLETE) {
                 drawTutorialCompleteText();
             }
@@ -1278,11 +1284,12 @@ public class DockMasterGame extends ApplicationAdapter {
         font.draw(batch, "Water Tex: " + waterTex, x, y - 300);
         font.draw(batch, "Dock Tex: " + dockTex, x, y - 320);
 
-        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 340);
-        font.draw(batch, "Visual Size: " + (int)(boat.profile.length * boat.profile.visualScale) + "x" + (int)(boat.profile.width * boat.profile.visualScale), x, y - 360);
-        font.draw(batch, "Collision Size: " + (int)boat.profile.length + "x" + (int)boat.profile.width, x, y - 380);
-        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 400);
-        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 420);
+        font.draw(batch, "Control Mode: " + progressManager.getControlMode().toUpperCase(), x, y - 340);
+        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 360);
+        font.draw(batch, "Visual Size: " + (int)(boat.profile.length * boat.profile.visualScale) + "x" + (int)(boat.profile.width * boat.profile.visualScale), x, y - 380);
+        font.draw(batch, "Collision Size: " + (int)boat.profile.length + "x" + (int)boat.profile.width, x, y - 400);
+        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 420);
+        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 440);
     }
 
     @Override
