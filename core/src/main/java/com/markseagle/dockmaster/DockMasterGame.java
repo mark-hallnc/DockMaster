@@ -122,6 +122,7 @@ public class DockMasterGame extends ApplicationAdapter {
         }
         boat.reset(400, 100, 90, 0);
         boat.boatValue = profile.value;
+        boat.tuning = ControlTuning.getPreset(progressManager.getControlFeelPreset());
 
         dock.setLevel(currentLevel);
         levelTimer = 0;
@@ -169,6 +170,7 @@ public class DockMasterGame extends ApplicationAdapter {
         }
         boat.reset(level.startPos.x, level.startPos.y, level.startAngle, levelStartDamage);
         boat.boatValue = progressManager.getBoatValue(profile.id, profile.value);
+        boat.tuning = ControlTuning.getPreset(progressManager.getControlFeelPreset());
 
         // Apply Upgrades
         boat.engineLevel = progressManager.getUpgradeLevel(profile.id, "engine");
@@ -422,6 +424,17 @@ public class DockMasterGame extends ApplicationAdapter {
             progressManager.setThrottleMode(nextTMode);
             soundManager.play("click");
             if (nextTMode.equals("sticky")) showStatus("Sticky throttle engaged. Tap N to neutral.");
+        }
+
+        if (inputController.controlFeelToggled) {
+            String current = progressManager.getControlFeelPreset();
+            String next = "balanced";
+            if (current.equals("arcade")) next = "balanced";
+            else if (current.equals("balanced")) next = "realistic";
+            else if (current.equals("realistic")) next = "arcade";
+            progressManager.setControlFeelPreset(next);
+            soundManager.play("click");
+            if (boat != null) boat.tuning = ControlTuning.getPreset(next);
         }
 
         if (inputController.pausePressed) {
@@ -955,11 +968,14 @@ public class DockMasterGame extends ApplicationAdapter {
         font.setColor(Color.WHITE);
         font.draw(batch, "Adjust your experience preferences.", HUD_WIDTH / 2 - 140, HUD_HEIGHT - 80);
 
-        font.draw(batch, "BACK", HUD_WIDTH / 2 - 20, HUD_HEIGHT - 55);
-        font.draw(batch, "SOUND: " + (progressManager.isSoundEnabled() ? "ON" : "OFF"), HUD_WIDTH / 2 - 45, 335);
-        font.draw(batch, "VIBRATE: " + (progressManager.isVibrationEnabled() ? "ON" : "OFF"), HUD_WIDTH / 2 - 50, 235);
-        font.draw(batch, "CONTROLS: " + progressManager.getControlMode().toUpperCase(), HUD_WIDTH / 2 - 75, 145);
-        font.draw(batch, "THROTTLE: " + progressManager.getThrottleMode().toUpperCase(), HUD_WIDTH / 2 - 75, 85);
+        String feel = progressManager.getControlFeelPreset();
+        String desc = "Balanced: Recommended";
+        if (feel.equals("arcade")) desc = "Arcade: Easier, quicker response";
+        else if (feel.equals("realistic")) desc = "Realistic: Heavier boat feel";
+
+        font.getData().setScale(0.8f);
+        font.draw(batch, desc, HUD_WIDTH / 2 - 120, 30);
+        font.getData().setScale(1.2f);
     }
 
     private void drawLevelIntroShapes() {
@@ -1301,11 +1317,12 @@ public class DockMasterGame extends ApplicationAdapter {
 
         font.draw(batch, "Control Mode: " + progressManager.getControlMode().toUpperCase(), x, y - 340);
         font.draw(batch, "Throttle Mode: " + progressManager.getThrottleMode().toUpperCase(), x, y - 360);
-        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 380);
-        font.draw(batch, "Visual Size: " + (int)(boat.profile.length * boat.profile.visualScale) + "x" + (int)(boat.profile.width * boat.profile.visualScale), x, y - 400);
-        font.draw(batch, "Collision Size: " + (int)boat.profile.length + "x" + (int)boat.profile.width, x, y - 420);
-        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 440);
-        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 460);
+        font.draw(batch, "Feel Preset: " + progressManager.getControlFeelPreset().toUpperCase(), x, y - 380);
+        font.draw(batch, "Render Scale: " + String.format("%.2f", boat.profile.visualScale), x, y - 400);
+        font.draw(batch, "Visual Size: " + (int)(boat.profile.length * boat.profile.visualScale) + "x" + (int)(boat.profile.width * boat.profile.visualScale), x, y - 420);
+        font.draw(batch, "Collision Size: " + (int)boat.profile.length + "x" + (int)boat.profile.width, x, y - 440);
+        font.draw(batch, "Cam Zoom: " + String.format("%.2f", worldCamera.zoom), x, y - 460);
+        font.draw(batch, "Paused: " + (state == GameState.PAUSED), x, y - 480);
     }
 
     @Override

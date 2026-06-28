@@ -20,13 +20,7 @@ public class Boat {
     public float currentThrottle = 0f;
     private float steerageFactor = 0f;
 
-    // Physics Tuning Constants
-    private static final float THROTTLE_RAMP_UP = 2.0f;
-    private static final float THROTTLE_RAMP_DOWN = 3.5f;
-    private static final float MIN_STEERAGE_SPEED = 8f;
-    private static final float FULL_STEERAGE_SPEED = 100f;
-    private static final float REVERSE_STEERING_MULTIPLIER = 0.6f;
-    private static final float COAST_STEERING_MULTIPLIER = 0.5f;
+    public ControlTuning tuning = ControlTuning.getPreset("balanced");
 
     public Polygon bounds;
     private float flashTimer = 0;
@@ -86,8 +80,8 @@ public class Boat {
 
         // 1. Throttle Ramping
         float targetT = input.throttleValue;
-        float rampRate = (Math.abs(targetT) > Math.abs(currentThrottle)) ? THROTTLE_RAMP_UP : THROTTLE_RAMP_DOWN;
-        if (targetT < 0 && currentThrottle <= 0) rampRate = THROTTLE_RAMP_UP * 0.8f; // Reverse is slightly slower to engage
+        float rampRate = (Math.abs(targetT) > Math.abs(currentThrottle)) ? tuning.throttleRampUp : tuning.throttleRampDown;
+        if (targetT < 0 && currentThrottle <= 0) rampRate = tuning.reverseRamp;
 
         if (currentThrottle < targetT) {
             currentThrottle = Math.min(targetT, currentThrottle + rampRate * delta);
@@ -101,12 +95,12 @@ public class Boat {
         // Effective Stats with Upgrades
         float effectiveThrust = profile.forwardThrust * (1.0f + engineLevel * 0.05f);
         float effectiveMaxSpeed = profile.maxForwardSpeed * (1.0f + engineLevel * 0.05f);
-        float effectiveTurnRate = profile.turnRate * (1.0f + steeringLevel * 0.05f);
+        float effectiveTurnRate = profile.turnRate * (1.0f + steeringLevel * 0.05f) * tuning.steeringResponse;
         float effectiveReverseThrust = profile.reverseThrust * (1.0f + reverseLevel * 0.07f);
 
         // 2. Steerage Logic (Speed/Flow dependent steering)
         float speed = velocity.len();
-        float speedSteerage = MathUtils.clamp((speed - MIN_STEERAGE_SPEED) / (FULL_STEERAGE_SPEED - MIN_STEERAGE_SPEED), 0f, 1f);
+        float speedSteerage = MathUtils.clamp((speed - tuning.minSteerageSpeed) / (tuning.fullSteerageSpeed - tuning.minSteerageSpeed), 0f, 1f);
 
         // Prop wash: small steerage even at zero speed if throttle is applied
         float propWash = MathUtils.clamp(Math.abs(currentThrottle) * 0.3f, 0, 0.3f);
@@ -118,9 +112,9 @@ public class Boat {
 
             // Coasting/Reverse Multipliers
             if (Math.abs(currentThrottle) < 0.05f) {
-                steeringEffect *= COAST_STEERING_MULTIPLIER;
+                steeringEffect *= tuning.coastSteeringMultiplier;
             } else if (currentThrottle < -0.05f) {
-                steeringEffect *= REVERSE_STEERING_MULTIPLIER;
+                steeringEffect *= tuning.reverseSteeringMultiplier;
             }
 
             angle -= steeringEffect * input.steeringValue * delta;

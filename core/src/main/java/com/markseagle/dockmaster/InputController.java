@@ -33,7 +33,7 @@ public class InputController {
     private int steeringPointer = -1;
 
     public boolean nextPressed, retryPressed, levelSelectPressed, titlePressed, startPressed, boatSelectPressed, garagePressed, repairPressed, settingsPressed, trainingPressed, skipPressed, pausePressed;
-    public boolean controlModeToggled, throttleModeToggled;
+    public boolean controlModeToggled, throttleModeToggled, controlFeelToggled;
     public boolean upgradeEnginePressed, upgradeSteeringPressed, upgradeHullPressed, upgradeReversePressed;
     public boolean soundToggled, vibrateToggled;
     public boolean debugToggled = false;
@@ -41,7 +41,7 @@ public class InputController {
     private final Rectangle btnLeft, btnRight, btnFwd, btnRev;
     private final Rectangle btnNext, btnRetry, btnPause;
     private final Rectangle btnStart, btnBack, btnLevelSelect, btnBoatSelect, btnGarage, btnSettings, btnTraining;
-    private final Rectangle btnRepair, btnSkip, btnControls, btnThrottleMode;
+    private final Rectangle btnRepair, btnSkip, btnControls, btnThrottleMode, btnControlFeel;
     private final Rectangle btnUpgradeEngine, btnUpgradeSteering, btnUpgradeHull, btnUpgradeReverse;
     private final Rectangle btnLevelSelectResults, btnTitleResults, btnGarageResults;
     private final Rectangle btnSound, btnVibrate;
@@ -83,8 +83,9 @@ public class InputController {
         // Settings screen
         btnSound = new Rectangle(hudWidth / 2 - 100, 300, 200, 60);
         btnVibrate = new Rectangle(hudWidth / 2 - 100, 200, 200, 60);
-        btnControls = new Rectangle(hudWidth / 2 - 100, 120, 200, 50);
-        btnThrottleMode = new Rectangle(hudWidth / 2 - 100, 60, 200, 50);
+        btnControls = new Rectangle(hudWidth / 2 - 100, 140, 200, 45);
+        btnThrottleMode = new Rectangle(hudWidth / 2 - 100, 90, 200, 45);
+        btnControlFeel = new Rectangle(hudWidth / 2 - 100, 40, 200, 45);
 
         // Garage screen
         btnRepair = new Rectangle(hudWidth / 2 - 100, 150, 200, 60);
@@ -142,6 +143,7 @@ public class InputController {
         pausePressed = false;
         controlModeToggled = false;
         throttleModeToggled = false;
+        controlFeelToggled = false;
         repairPressed = false;
         upgradeEnginePressed = false;
         upgradeSteeringPressed = false;
@@ -261,6 +263,7 @@ public class InputController {
                         if (btnVibrate.contains(touch)) vibrateToggled = true;
                         if (btnControls.contains(touch)) controlModeToggled = true;
                         if (btnThrottleMode.contains(touch)) throttleModeToggled = true;
+                        if (btnControlFeel.contains(touch)) controlFeelToggled = true;
                     } else if (state == DockMasterGame.GameState.GARAGE) {
                         if (btnBack.contains(touch)) titlePressed = true;
                         if (btnRepair.contains(touch)) repairPressed = true;
@@ -389,6 +392,7 @@ public class InputController {
             drawButton(shape, btnVibrate, false);
             drawButton(shape, btnControls, false);
             drawButton(shape, btnThrottleMode, false);
+            drawButton(shape, btnControlFeel, false);
         } else if (state == DockMasterGame.GameState.GARAGE) {
             drawButton(shape, btnBack, false);
             drawButton(shape, btnRepair, false);
@@ -463,6 +467,7 @@ public class InputController {
             drawCenteredLabel(batch, font, "VIBRATE: " + (pm.isVibrationEnabled() ? "ON" : "OFF"), btnVibrate);
             drawCenteredLabel(batch, font, "CONTROLS: " + pm.getControlMode().toUpperCase(), btnControls);
             drawCenteredLabel(batch, font, "THROTTLE: " + pm.getThrottleMode().toUpperCase(), btnThrottleMode);
+            drawCenteredLabel(batch, font, "FEEL: " + pm.getControlFeelPreset().toUpperCase(), btnControlFeel);
         } else if (state == DockMasterGame.GameState.GARAGE) {
             drawCenteredLabel(batch, font, "BACK", btnBack);
             drawCenteredLabel(batch, font, "REPAIR", btnRepair);
