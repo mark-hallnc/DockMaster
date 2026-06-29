@@ -43,10 +43,11 @@ public class Boat {
     private void initBounds() {
         float l = profile.length;
         float w = profile.width;
+        float bowTip = l / 2 + (l * 0.2f);
         float[] vertices = new float[] {
             -l/2, -w/2,
             l/2, -w/2,
-            l/2 + 10, 0,
+            bowTip, 0,
             l/2, w/2,
             -l/2, w/2
         };
@@ -65,8 +66,8 @@ public class Boat {
     public Vector2 getBowPos() {
         float l = profile.length;
         return new Vector2(
-            x + MathUtils.cosDeg(angle) * (l / 2 + 10),
-            y + MathUtils.sinDeg(angle) * (l / 2 + 10)
+            x + MathUtils.cosDeg(angle) * (l / 2 + l * 0.2f),
+            y + MathUtils.sinDeg(angle) * (l / 2 + l * 0.2f)
         );
     }
 
@@ -244,12 +245,12 @@ public class Boat {
         // 1. Hull Shadow/Outline (slightly larger)
         shape.setColor(0, 0, 0, 0.3f);
         shape.rect(-l / 2 - 2, -w / 2 - 2, l * 0.7f + 4, w + 4);
-        shape.triangle(l * 0.2f - 2, -w / 2 - 2, l * 0.2f - 2, w / 2 + 2, l / 2 + 12, 0);
+        shape.triangle(l * 0.2f - 2, -w / 2 - 2, l * 0.2f - 2, w / 2 + 2, l / 2 + (l * 0.2f) + 2, 0);
 
         // 2. Main Hull
         shape.setColor(boatColor);
         shape.rect(-l / 2, -w / 2, l * 0.7f, w);
-        shape.triangle(l * 0.2f, -w / 2, l * 0.2f, w / 2, l / 2 + 10 * profile.visualScale, 0);
+        shape.triangle(l * 0.2f, -w / 2, l * 0.2f, w / 2, l / 2 + (l * 0.2f), 0);
 
         // 3. Deck/Cabin Details
         shape.setColor(0.9f, 0.9f, 0.9f, 1f); // Off-white deck

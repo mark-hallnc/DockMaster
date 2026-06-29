@@ -13,6 +13,7 @@ import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.ScreenUtils;
+import com.badlogic.gdx.utils.viewport.ExtendViewport;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 import java.util.List;
@@ -81,10 +82,10 @@ public class DockMasterGame extends ApplicationAdapter {
         titleFont.getData().setScale(3.0f);
 
         worldCamera = new OrthographicCamera();
-        worldViewport = new FitViewport(WORLD_WIDTH, WORLD_HEIGHT, worldCamera);
+        worldViewport = new ExtendViewport(WORLD_WIDTH, WORLD_HEIGHT, worldCamera);
 
         hudCamera = new OrthographicCamera();
-        hudViewport = new FitViewport(HUD_WIDTH, HUD_HEIGHT, hudCamera);
+        hudViewport = new ExtendViewport(HUD_WIDTH, HUD_HEIGHT, hudCamera);
 
         inputController = new InputController(HUD_WIDTH, HUD_HEIGHT);
         levelManager = new LevelManager();
@@ -159,10 +160,11 @@ public class DockMasterGame extends ApplicationAdapter {
             boat.profile = profile;
             float l = boat.profile.length;
             float w = boat.profile.width;
+            float bowTip = l / 2 + (l * 0.2f);
             float[] vertices = new float[] {
                 -l/2, -w/2,
                 l/2, -w/2,
-                l/2 + 10, 0,
+                bowTip, 0,
                 l/2, w/2,
                 -l/2, w/2
             };
@@ -581,7 +583,9 @@ public class DockMasterGame extends ApplicationAdapter {
         }
 
         dock.drawSlipZoneFilled(shapeRenderer, boat);
-        drawEnvironmentalIndicators(shapeRenderer, currentLevel);
+        if (inputController.debugToggled) {
+            drawEnvironmentalIndicators(shapeRenderer, currentLevel);
+        }
 
         if (!USE_TEXTURES || !textureManager.hasTexture("buoy")) {
             drawWaterDetails(shapeRenderer);
@@ -635,20 +639,19 @@ public class DockMasterGame extends ApplicationAdapter {
         Texture water = textureManager.getTexture("water_tile");
         if (water == null) return;
 
-        // Draw large enough to cover the view and support some camera movement
-        // We use UV coordinates to repeat the texture based on world position
-        float startX = worldCamera.position.x - WORLD_WIDTH * worldCamera.zoom;
-        float startY = worldCamera.position.y - WORLD_HEIGHT * worldCamera.zoom;
-        float width = WORLD_WIDTH * 2 * worldCamera.zoom;
-        float height = WORLD_HEIGHT * 2 * worldCamera.zoom;
+        // Cover the entire visible world area
+        float w = worldViewport.getWorldWidth() * 1.5f * worldCamera.zoom;
+        float h = worldViewport.getWorldHeight() * 1.5f * worldCamera.zoom;
+        float startX = worldCamera.position.x - w / 2;
+        float startY = worldCamera.position.y - h / 2;
 
         // Tiling calculation based on world units
         float u = startX / water.getWidth();
-        float v = -startY / water.getHeight(); // Flip Y for typical UV space
-        float u2 = u + width / water.getWidth();
-        float v2 = v - height / water.getHeight();
+        float v = -startY / water.getHeight();
+        float u2 = u + w / water.getWidth();
+        float v2 = v - h / water.getHeight();
 
-        batch.draw(water, startX, startY, width, height, u, v, u2, v2);
+        batch.draw(water, startX, startY, w, h, u, v, u2, v2);
     }
 
     private void drawTexturedDocks(SpriteBatch batch) {
@@ -689,25 +692,36 @@ public class DockMasterGame extends ApplicationAdapter {
                 batch.draw(piling, x + w - s/2, y + h - s/2, s, s);
             }
 
-            // 3. Optional Detail: Tire Bumpers along longest sides
-            if (bumper != null) {
+            // 3. Optional Detail: Tire Bumpers and Cleats (Edge-aligned)
+            if (w > h) { // Horizontal Dock
                 float bs = 24f;
-                if (w > h) {
-                    for (float bx = x + 30; bx < x + w - 30; bx += 60) {
-                        batch.draw(bumper, bx - bs/2, y - bs/4, bs, bs);
-                        batch.draw(bumper, bx - bs/2, y + h - bs*0.75f, bs, bs);
-                    }
-                } else {
-                    for (float by = y + 30; by < y + h - 30; by += 60) {
-                        batch.draw(bumper, x - bs/4, by - bs/2, bs, bs);
-                        batch.draw(bumper, x + w - bs*0.75f, by - bs/2, bs, bs);
+                float cs = 16f;
+                // Bumpers along top and bottom edges
+                for (float bx = x + 30; bx < x + w - 30; bx += 60) {
+                    batch.draw(bumper, bx - bs/2, y - bs/4, bs, bs);
+                    batch.draw(bumper, bx - bs/2, y + h - bs*0.75f, bs, bs);
+                }
+                // Cleats along the main top edge
+                if (cleat != null) {
+                    for (float cx = x + 40; cx < x + w - 40; cx += 100) {
+                        batch.draw(cleat, cx - cs/2, y + h - cs, cs, cs);
                     }
                 }
-            }
-
-            // 4. Optional Detail: Cleats
-            if (cleat != null && w > 40 && h > 40) {
-                batch.draw(cleat, x + w/2 - 8, y + h/2 - 8, 16, 16);
+            } else { // Vertical Dock
+                float bs = 24f;
+                float cs = 16f;
+                // Bumpers along left and right edges
+                for (float by = y + 30; by < y + h - 30; by += 60) {
+                    batch.draw(bumper, x - bs/4, by - bs/2, bs, bs);
+                    batch.draw(bumper, x + w - bs*0.75f, by - bs/2, bs, bs);
+                }
+                // Cleats along the outer edge, rotated 90 degrees
+                if (cleat != null) {
+                    for (float cy = y + 40; cy < y + h - 40; cy += 100) {
+                        // Vertical dock cleats rotated 90 deg
+                        batch.draw(cleat, x + w - cs, cy - cs/2, cs/2, cs/2, cs, cs, 1, 1, 90, 0, 0, (int)cleat.getWidth(), (int)cleat.getHeight(), false, false);
+                    }
+                }
             }
         }
     }
@@ -737,10 +751,22 @@ public class DockMasterGame extends ApplicationAdapter {
             if (markerRed != null) batch.draw(markerRed, 350, 100, 32, 32);
         }
 
-        // Fuel Pump for Fuel Levels
+        // Fuel Pump for Fuel Levels (Dock-mounted)
         if (pump != null && currentLevel.levelName.toLowerCase().contains("fuel")) {
-            // Find a dock to place it near, or just a fixed spot for now
-            batch.draw(pump, 310, 460, 32, 32);
+            // Find a dock to place it on, ideally near the center of the first collision dock
+            if (!dock.collisionPolys.isEmpty()) {
+                com.badlogic.gdx.math.Polygon p = dock.collisionPolys.get(0);
+                float dx = p.getX();
+                float dy = p.getY();
+                float dw = p.getVertices()[2];
+                float dh = p.getVertices()[5];
+
+                if (dw > dh) { // Horizontal dock
+                    batch.draw(pump, dx + dw / 2 - 16, dy + dh - 10, 32, 32);
+                } else { // Vertical dock
+                    batch.draw(pump, dx + dw - 10, dy + dh / 2 - 16, 32, 32);
+                }
+            }
         }
     }
 
@@ -769,7 +795,9 @@ public class DockMasterGame extends ApplicationAdapter {
     private void drawStyledWater(ShapeRenderer shape) {
         // Deep water base
         shape.setColor(0.1f, 0.3f, 0.5f, 1f);
-        shape.rect(worldCamera.position.x - WORLD_WIDTH, worldCamera.position.y - WORLD_HEIGHT, WORLD_WIDTH * 2, WORLD_HEIGHT * 2);
+        float w = worldViewport.getWorldWidth() * 2;
+        float h = worldViewport.getWorldHeight() * 2;
+        shape.rect(worldCamera.position.x - w / 2, worldCamera.position.y - h / 2, w, h);
 
         drawWaterDetails(shape);
     }
@@ -808,7 +836,9 @@ public class DockMasterGame extends ApplicationAdapter {
             batch.begin();
             Texture water = textureManager.getTexture("water_tile");
             if (water != null) {
-                batch.draw(water, 0, 0, HUD_WIDTH, HUD_HEIGHT, 0, 0, (int)(HUD_WIDTH/water.getWidth()), (int)(HUD_HEIGHT/water.getHeight()));
+                float hw = hudViewport.getWorldWidth();
+                float hh = hudViewport.getWorldHeight();
+                batch.draw(water, 0, 0, hw, hh, 0, 0, (int)(hw/water.getWidth()), (int)(hh/water.getHeight()));
             }
             batch.end();
         }
@@ -825,14 +855,15 @@ public class DockMasterGame extends ApplicationAdapter {
                 drawStyledWater(shapeRenderer);
             }
             shapeRenderer.setColor(0, 0, 0.2f, 0.4f);
-            shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
+            shapeRenderer.rect(0, 0, hudViewport.getWorldWidth(), hudViewport.getWorldHeight());
         } else if (state == GameState.LEVEL_SELECT || state == GameState.BOAT_SELECT) {
             if (!USE_TEXTURES || !textureManager.hasTexture("water_tile")) {
                 drawStyledWater(shapeRenderer);
             }
             shapeRenderer.setColor(0, 0, 0, 0.4f);
-            shapeRenderer.rect(0, 0, HUD_WIDTH, HUD_HEIGHT);
-        } else if (state == GameState.GARAGE) {
+            shapeRenderer.rect(0, 0, hudViewport.getWorldWidth(), hudViewport.getWorldHeight());
+        }
+        else if (state == GameState.GARAGE) {
             drawPanel(shapeRenderer, 50, 100, 700, 400);
         } else if (state == GameState.SETTINGS) {
             drawPanel(shapeRenderer, HUD_WIDTH / 2 - 200, 100, 400, 350);
@@ -903,19 +934,21 @@ public class DockMasterGame extends ApplicationAdapter {
     }
 
     private void drawHelpText() {
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight() / 2;
         font.setColor(Color.YELLOW);
-        font.draw(batch, "CONTROLS & HELP", HUD_WIDTH / 2 - 80, HUD_HEIGHT / 2 + 80);
+        font.draw(batch, "CONTROLS & HELP", centerX - 80, centerY + 80);
         font.setColor(Color.WHITE);
-        font.draw(batch, "W/FWD: Forward Throttle", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 + 50);
-        font.draw(batch, "S/REV: Reverse Throttle", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 + 30);
-        font.draw(batch, "A/D: Steer Left/Right", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 + 10);
-        font.draw(batch, "Dock slowly in green zone", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 - 20);
-        font.draw(batch, "Repair damage in Garage", HUD_WIDTH / 2 - 130, HUD_HEIGHT / 2 - 40);
-        font.draw(batch, "Press H to close", HUD_WIDTH / 2 - 60, HUD_HEIGHT / 2 - 70);
+        font.draw(batch, "W/FWD: Forward Throttle", centerX - 130, centerY + 50);
+        font.draw(batch, "S/REV: Reverse Throttle", centerX - 130, centerY + 30);
+        font.draw(batch, "A/D: Steer Left/Right", centerX - 130, centerY + 10);
+        font.draw(batch, "Dock slowly in green zone", centerX - 130, centerY - 20);
+        font.draw(batch, "Repair damage in Garage", centerX - 130, centerY - 40);
+        font.draw(batch, "Press H to close", centerX - 60, centerY - 70);
     }
 
     private void drawHUDShapes() {
-        drawPanel(shapeRenderer, 10, HUD_HEIGHT - 170, 200, 160);
+        drawPanel(shapeRenderer, 10, hudViewport.getWorldHeight() - 170, 200, 160);
     }
 
     private void drawHUDText() {
@@ -925,7 +958,7 @@ public class DockMasterGame extends ApplicationAdapter {
         Texture damageIcon = textureManager.getTexture("ui_damage");
 
         font.setColor(Color.WHITE);
-        float top = HUD_HEIGHT - 20;
+        float top = hudViewport.getWorldHeight() - 20;
         font.draw(batch, "Boat: " + boat.profile.displayName, 20, top);
         font.draw(batch, "Dest: " + lvl.destinationName, 20, top - 20);
 
@@ -949,12 +982,14 @@ public class DockMasterGame extends ApplicationAdapter {
     }
 
     private void drawTutorialCompleteShapes() {
-        drawPanel(shapeRenderer, HUD_WIDTH / 2 - 180, HUD_HEIGHT / 2 - 100, 360, 200);
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight() / 2;
+        drawPanel(shapeRenderer, centerX - 180, centerY - 100, 360, 200);
     }
 
     private void drawTutorialCompleteText() {
-        float centerX = HUD_WIDTH / 2;
-        float centerY = HUD_HEIGHT / 2;
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight() / 2;
         font.setColor(Color.LIME);
         font.draw(batch, "TRAINING COMPLETE!", centerX - 100, centerY + 60);
         font.setColor(Color.WHITE);
@@ -963,10 +998,12 @@ public class DockMasterGame extends ApplicationAdapter {
     }
 
     private void drawSettingsText() {
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight();
         font.setColor(Color.YELLOW);
-        font.draw(batch, "SETTINGS", HUD_WIDTH / 2 - 40, HUD_HEIGHT - 40);
+        font.draw(batch, "SETTINGS", centerX - 40, centerY - 40);
         font.setColor(Color.WHITE);
-        font.draw(batch, "Adjust your experience preferences.", HUD_WIDTH / 2 - 140, HUD_HEIGHT - 80);
+        font.draw(batch, "Adjust your experience preferences.", centerX - 140, centerY - 80);
 
         String feel = progressManager.getControlFeelPreset();
         String desc = "Balanced: Recommended";
@@ -974,31 +1011,34 @@ public class DockMasterGame extends ApplicationAdapter {
         else if (feel.equals("realistic")) desc = "Realistic: Heavier boat feel";
 
         font.getData().setScale(0.8f);
-        font.draw(batch, desc, HUD_WIDTH / 2 - 120, 30);
+        font.draw(batch, desc, centerX - 120, 30);
         font.getData().setScale(1.2f);
     }
 
     private void drawLevelIntroShapes() {
         float alpha = Math.min(1.0f, introTimer);
         shapeRenderer.setColor(0, 0, 0, alpha * 0.5f);
-        shapeRenderer.rect(0, HUD_HEIGHT / 2 - 20, HUD_WIDTH, 120);
+        shapeRenderer.rect(0, hudViewport.getWorldHeight() / 2 - 20, hudViewport.getWorldWidth(), 120);
     }
 
     private void drawLevelIntroText() {
         LevelDefinition lvl = currentLevel;
         float alpha = Math.min(1.0f, introTimer);
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight() / 2;
+
         font.setColor(1, 1, 0, alpha); // Yellow
-        font.draw(batch, "DESTINATION: " + lvl.destinationName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 105);
+        font.draw(batch, "DESTINATION: " + lvl.destinationName, centerX - 120, centerY + 105);
         font.setColor(1, 1, 1, alpha);
-        font.draw(batch, "LEVEL: " + lvl.levelName, HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 80);
-        font.draw(batch, "PAR TIME: " + (int)lvl.parTimeSeconds + "s", HUD_WIDTH / 2 - 120, HUD_HEIGHT / 2 + 55);
+        font.draw(batch, "LEVEL: " + lvl.levelName, centerX - 120, centerY + 80);
+        font.draw(batch, "PAR TIME: " + (int)lvl.parTimeSeconds + "s", centerX - 120, centerY + 55);
 
         font.setColor(0, 1, 1, alpha); // Cyan
-        font.draw(batch, "OBJECTIVE: Dock safely without totaling.", HUD_WIDTH / 2 - 140, HUD_HEIGHT / 2 + 30);
+        font.draw(batch, "OBJECTIVE: Dock safely without totaling.", centerX - 140, centerY + 30);
 
         if (lvl.windForce.len() > 0 || !lvl.currentZones.isEmpty()) {
             font.setColor(1, 0.5f, 0, alpha); // Orange
-            font.draw(batch, "WARNING: WIND/CURRENT DETECTED", HUD_WIDTH / 2 - 140, HUD_HEIGHT / 2 + 5);
+            font.draw(batch, "WARNING: WIND/CURRENT DETECTED", centerX - 140, centerY + 5);
         }
 
         font.setColor(Color.WHITE);
@@ -1006,26 +1046,29 @@ public class DockMasterGame extends ApplicationAdapter {
 
     private void drawDockingGuidanceText() {
         float speed = boat.velocity.len();
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float bottomLabelY = hudViewport.getWorldHeight() - 60;
+
         if (dock.isInsideSlipZone(boat)) {
             font.setColor(Color.LIME);
-            font.draw(batch, "HOLD STEADY: " + (int)(dock.getDockingProgress() * 100) + "%", HUD_WIDTH / 2 - 70, HUD_HEIGHT - 60);
+            font.draw(batch, "HOLD STEADY: " + (int)(dock.getDockingProgress() * 100) + "%", centerX - 70, bottomLabelY);
         } else if (dock.slipZone.contains(boat.x, boat.y)) {
             if (speed >= dock.dockingMaxSpeed) {
                 font.setColor(Color.ORANGE);
-                font.draw(batch, "!!! TOO FAST !!!", HUD_WIDTH / 2 - 60, HUD_HEIGHT - 60);
+                font.draw(batch, "!!! TOO FAST !!!", centerX - 60, bottomLabelY);
             } else if (dock.checkCollision(boat)) {
                 font.setColor(Color.RED);
-                font.draw(batch, "TOUCHING DOCK", HUD_WIDTH / 2 - 60, HUD_HEIGHT - 60);
+                font.draw(batch, "TOUCHING DOCK", centerX - 60, bottomLabelY);
             } else {
                 font.setColor(Color.YELLOW);
-                font.draw(batch, "ALIGN WITH DOCK ARROW", HUD_WIDTH / 2 - 100, HUD_HEIGHT - 60);
+                font.draw(batch, "ALIGN WITH DOCK ARROW", centerX - 100, bottomLabelY);
             }
         } else {
             // Distance check to show "Dock Here" when near but not inside
             float dst = new Vector2(boat.x, boat.y).dst(dock.slipZone.x + dock.slipZone.width/2, dock.slipZone.y + dock.slipZone.height/2);
             if (dst < 250) {
                 font.setColor(Color.CYAN);
-                font.draw(batch, "DOCK HERE", HUD_WIDTH / 2 - 40, HUD_HEIGHT - 60);
+                font.draw(batch, "DOCK HERE", centerX - 40, bottomLabelY);
             }
         }
 
@@ -1037,39 +1080,39 @@ public class DockMasterGame extends ApplicationAdapter {
             }
             if (near) {
                 font.setColor(Color.RED);
-                font.draw(batch, "!!! DANGER: SLOW DOWN !!!", HUD_WIDTH / 2 - 110, 150);
+                font.draw(batch, "!!! DANGER: SLOW DOWN !!!", centerX - 110, 150);
             }
         }
         font.setColor(Color.WHITE);
     }
 
     private void drawTitleText() {
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight();
         titleFont.setColor(Color.YELLOW);
-        titleFont.draw(batch, "DockMaster", HUD_WIDTH / 2 - 180, HUD_HEIGHT - 60);
+        titleFont.draw(batch, "DockMaster", centerX - 180, centerY - 60);
         font.setColor(Color.WHITE);
-        font.draw(batch, "The Premier Boat Docking Challenge", HUD_WIDTH / 2 - 160, HUD_HEIGHT - 120);
+        font.draw(batch, "The Premier Boat Docking Challenge", centerX - 160, centerY - 120);
 
         // Info Strip
         font.draw(batch, "Cash: $" + progressManager.getPlayerCash() + " | Stars: " + progressManager.getTotalStars(levelManager.getLevels().size()), 20, 40);
         font.draw(batch, "Active Boat: " + boatCatalog.getBoatById(progressManager.getSelectedBoatId()).displayName, 20, 70);
-
-        if (!progressManager.isTutorialCompleted()) {
-            font.setColor(Color.ORANGE);
-            font.draw(batch, ">>> NEW PLAYER? TRY TRAINING <<<", HUD_WIDTH / 2 - 130, 295);
-            font.setColor(Color.WHITE);
-        }
     }
 
     private void drawLevelSelectText() {
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight();
         font.setColor(Color.YELLOW);
-        font.draw(batch, "SELECT LEVEL", HUD_WIDTH / 2 - 80, HUD_HEIGHT - 40);
+        font.draw(batch, "SELECT LEVEL", centerX - 80, centerY - 40);
         font.setColor(Color.WHITE);
         font.draw(batch, "Total Stars: " + progressManager.getTotalStars(levelManager.getLevels().size()), 20, 40);
     }
 
     private void drawBoatSelectText() {
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight();
         font.setColor(Color.YELLOW);
-        font.draw(batch, "SELECT BOAT", HUD_WIDTH / 2 - 80, HUD_HEIGHT - 40);
+        font.draw(batch, "SELECT BOAT", centerX - 80, centerY - 40);
 
         BoatDefinition b = boatCatalog.getBoatById(progressManager.getSelectedBoatId());
         int e = progressManager.getUpgradeLevel(b.id, "engine");
@@ -1100,34 +1143,36 @@ public class DockMasterGame extends ApplicationAdapter {
         float damage = progressManager.getBoatDamage(profile.id);
         long value = progressManager.getBoatValue(profile.id, profile.value);
         int cost = (int)(damage * 20);
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight();
 
         font.setColor(Color.YELLOW);
-        font.draw(batch, "GARAGE", HUD_WIDTH / 2 - 40, HUD_HEIGHT - 40);
+        font.draw(batch, "GARAGE", centerX - 40, centerY - 40);
 
         font.setColor(Color.WHITE);
-        font.draw(batch, "Boat: " + profile.displayName, 100, 450);
+        font.draw(batch, "Boat: " + profile.displayName, centerX - 300, 450);
         font.getData().setScale(0.9f);
-        font.draw(batch, profile.description, 100, 425);
+        font.draw(batch, profile.description, centerX - 300, 425);
         font.getData().setScale(1.2f);
 
         font.setColor(damage > 50 ? Color.RED : (damage > 0 ? Color.YELLOW : Color.LIME));
-        font.draw(batch, "Condition: " + (int)(100 - damage) + "%", 100, 360);
+        font.draw(batch, "Condition: " + (int)(100 - damage) + "%", centerX - 300, 360);
         font.setColor(Color.WHITE);
-        font.draw(batch, "Current Resale Value: $" + value, 100, 330);
-        font.draw(batch, "Original Value: $" + profile.value, 100, 305);
+        font.draw(batch, "Current Resale Value: $" + value, centerX - 300, 330);
+        font.draw(batch, "Original Value: $" + profile.value, centerX - 300, 305);
 
-        font.draw(batch, "Your Cash: $" + progressManager.getPlayerCash(), 450, 360);
+        font.draw(batch, "Your Cash: $" + progressManager.getPlayerCash(), centerX + 50, 360);
 
         if (damage > 0) {
             font.setColor(Color.ORANGE);
-            font.draw(batch, "Estimated Repair: $" + cost, 450, 330);
+            font.draw(batch, "Estimated Repair: $" + cost, centerX + 50, 330);
             if (progressManager.getPlayerCash() < cost) {
                 font.setColor(Color.RED);
-                font.draw(batch, "INSUFFICIENT FUNDS", 450, 305);
+                font.draw(batch, "INSUFFICIENT FUNDS", centerX + 50, 305);
             }
         } else {
             font.setColor(Color.LIME);
-            font.draw(batch, "NO REPAIRS NEEDED", 450, 330);
+            font.draw(batch, "NO REPAIRS NEEDED", centerX + 50, 330);
         }
     }
 
@@ -1220,15 +1265,15 @@ public class DockMasterGame extends ApplicationAdapter {
     }
 
     private void drawResultsBackdrop() {
-        float centerX = HUD_WIDTH / 2;
-        float centerY = HUD_HEIGHT / 2 + 100;
+        float centerX = hudViewport.getWorldWidth() / 2;
+        float centerY = hudViewport.getWorldHeight() / 2 + 100;
         drawPanel(shapeRenderer, centerX - 180, centerY - 280, 360, 420);
     }
 
     private void drawResultsText() {
         LevelDefinition lvl = currentLevel;
-        float centerX = HUD_WIDTH / 2 - 120;
-        float centerY = HUD_HEIGHT / 2 + 130;
+        float centerX = hudViewport.getWorldWidth() / 2 - 120;
+        float centerY = hudViewport.getWorldHeight() / 2 + 130;
 
         Texture starFilled = textureManager.getTexture("ui_star_filled");
         Texture starEmpty = textureManager.getTexture("ui_star_empty");
@@ -1334,6 +1379,7 @@ public class DockMasterGame extends ApplicationAdapter {
     public void resize(int width, int height) {
         worldViewport.update(width, height);
         hudViewport.update(width, height, true);
+        inputController.resize(hudViewport.getWorldWidth(), hudViewport.getWorldHeight());
     }
 
     @Override

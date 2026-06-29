@@ -48,8 +48,8 @@ public class InputController {
     private final Rectangle btnResumePause, btnRetryPause, btnLevelSelectPause, btnTitlePause, btnGaragePause;
 
     // Boat Controls Areas
-    private final float steeringCenterX = 145f;
-    private final float steeringCenterY = 115f;
+    private float steeringCenterX = 145f;
+    private float steeringCenterY = 115f;
     private final float steeringRadius = 85f;
     private final Rectangle throttleRect = new Rectangle(650, 60, 70, 210);
 
@@ -63,72 +63,126 @@ public class InputController {
     private final float margin = 30f;
 
     public InputController(float hudWidth, float hudHeight) {
-        // Gameplay
-        btnLeft = new Rectangle(margin, margin, btnSize, btnSize);
-        btnRight = new Rectangle(margin + btnSize + 20, margin, btnSize, btnSize);
-        btnRev = new Rectangle(hudWidth - margin - btnSize, margin, btnSize, btnSize);
-        btnFwd = new Rectangle(hudWidth - margin - btnSize * 2 - 20, margin, btnSize, btnSize);
+        // Just placeholders, will be set in resize
+        btnLeft = new Rectangle();
+        btnRight = new Rectangle();
+        btnRev = new Rectangle();
+        btnFwd = new Rectangle();
+        btnNext = new Rectangle();
+        btnRetry = new Rectangle();
+        btnStart = new Rectangle();
+        btnBack = new Rectangle();
+        btnLevelSelect = new Rectangle();
+        btnBoatSelect = new Rectangle();
+        btnGarage = new Rectangle();
+        btnSettings = new Rectangle();
+        btnTraining = new Rectangle();
+        btnRepair = new Rectangle();
+        btnSkip = new Rectangle();
+        btnControls = new Rectangle();
+        btnThrottleMode = new Rectangle();
+        btnControlFeel = new Rectangle();
+         btnUpgradeEngine = new Rectangle();
+        btnUpgradeSteering = new Rectangle();
+        btnUpgradeHull = new Rectangle();
+        btnUpgradeReverse = new Rectangle();
+        btnLevelSelectResults = new Rectangle();
+        btnTitleResults = new Rectangle();
+        btnGarageResults = new Rectangle();
+        btnSound = new Rectangle();
+        btnVibrate = new Rectangle();
+        btnResumePause = new Rectangle();
+        btnRetryPause = new Rectangle();
+        btnLevelSelectPause = new Rectangle();
+        btnTitlePause = new Rectangle();
+        btnGaragePause = new Rectangle();
+        btnPause = new Rectangle();
 
-        // Title screen
-        btnStart = new Rectangle(hudWidth / 2 - 100, 360, 200, 45);
-        btnTraining = new Rectangle(hudWidth / 2 - 100, 310, 200, 45);
-        btnLevelSelect = new Rectangle(hudWidth / 2 - 100, 260, 200, 45);
-        btnBoatSelect = new Rectangle(hudWidth / 2 - 100, 210, 200, 45);
-        btnGarage = new Rectangle(hudWidth / 2 - 100, 160, 200, 45);
-        btnSettings = new Rectangle(hudWidth / 2 - 100, 110, 200, 45);
+        resize(hudWidth, hudHeight);
 
-        // Training UI
-        btnSkip = new Rectangle(hudWidth - 110, hudHeight - 60, 100, 40);
-
-        // Settings screen
-        btnSound = new Rectangle(hudWidth / 2 - 100, 300, 200, 60);
-        btnVibrate = new Rectangle(hudWidth / 2 - 100, 200, 200, 60);
-        btnControls = new Rectangle(hudWidth / 2 - 100, 140, 200, 45);
-        btnThrottleMode = new Rectangle(hudWidth / 2 - 100, 90, 200, 45);
-        btnControlFeel = new Rectangle(hudWidth / 2 - 100, 40, 200, 45);
-
-        // Garage screen
-        btnRepair = new Rectangle(hudWidth / 2 - 100, 150, 200, 60);
-        float upW = 160;
-        float upH = 80;
-        float upMargin = 20;
-        btnUpgradeEngine = new Rectangle(hudWidth / 2 - upW - upMargin, 380, upW, upH);
-        btnUpgradeSteering = new Rectangle(hudWidth / 2 + upMargin, 380, upW, upH);
-        btnUpgradeHull = new Rectangle(hudWidth / 2 - upW - upMargin, 280, upW, upH);
-        btnUpgradeReverse = new Rectangle(hudWidth / 2 + upMargin, 280, upW, upH);
-
-        // Results screen
-        btnRetry = new Rectangle(hudWidth / 2 - 110, 240, 100, 45);
-        btnNext = new Rectangle(hudWidth / 2 + 10, 240, 100, 45);
-        btnLevelSelectResults = new Rectangle(hudWidth / 2 - 110, 185, 220, 45);
-        btnGarageResults = new Rectangle(hudWidth / 2 - 110, 130, 220, 45);
-        btnTitleResults = new Rectangle(hudWidth / 2 - 110, 75, 220, 45);
-
-        // Pause menu
-        btnPause = new Rectangle(hudWidth - 70, hudHeight - 60, 60, 50);
-        float pw = 200;
-        float ph = 50;
-        btnResumePause = new Rectangle(hudWidth / 2 - pw/2, 350, pw, ph);
-        btnRetryPause = new Rectangle(hudWidth / 2 - pw/2, 290, pw, ph);
-        btnLevelSelectPause = new Rectangle(hudWidth / 2 - pw/2, 230, pw, ph);
-        btnGaragePause = new Rectangle(hudWidth / 2 - pw/2, 170, pw, ph);
-        btnTitlePause = new Rectangle(hudWidth / 2 - pw/2, 110, pw, ph);
-
-        // Back button
-        btnBack = new Rectangle(20, hudHeight - 80, 100, 50);
-
-        // Level select grid (3x4)
+        // Level select grid (3x4) - relative to top-center
         for (int i = 0; i < 12; i++) {
-            float x = 40 + (i % 3) * 250;
-            float y = hudHeight - 140 - (i / 3) * 110;
-            levelButtons.add(new Rectangle(x, y, 230, 90));
+            levelButtons.add(new Rectangle());
         }
 
         // Boat select grid
         for (int i = 0; i < 4; i++) {
-            float x = 100 + (i % 2) * 350;
+            boatButtons.add(new Rectangle());
+        }
+    }
+
+    public void resize(float hudWidth, float hudHeight) {
+        float centerX = hudWidth / 2;
+
+        // Gameplay Buttons (Anchored to corners)
+        btnLeft.set(margin, margin, btnSize, btnSize);
+        btnRight.set(margin + btnSize + 20, margin, btnSize, btnSize);
+        btnRev.set(hudWidth - margin - btnSize, margin, btnSize, btnSize);
+        btnFwd.set(hudWidth - margin - btnSize * 2 - 20, margin, btnSize, btnSize);
+
+        // Boat Controls (Anchored to corners)
+        steeringCenterX = 145f;
+        steeringCenterY = 115f;
+        throttleRect.set(hudWidth - 70 - 60, 60, 70, 210);
+
+        // Title Screen (Centered)
+        btnStart.set(centerX - 100, 360, 200, 45);
+        btnTraining.set(centerX - 100, 310, 200, 45);
+        btnLevelSelect.set(centerX - 100, 260, 200, 45);
+        btnBoatSelect.set(centerX - 100, 210, 200, 45);
+        btnGarage.set(centerX - 100, 160, 200, 45);
+        btnSettings.set(centerX - 100, 110, 200, 45);
+
+        // Training
+        btnSkip.set(hudWidth - 110 - 20, hudHeight - 40 - 20, 100, 40);
+
+        // Settings (Centered)
+        btnSound.set(centerX - 100, 300, 200, 60);
+        btnVibrate.set(centerX - 100, 200, 200, 60);
+        btnControls.set(centerX - 100, 120, 200, 50);
+        btnThrottleMode.set(centerX - 100, 60, 200, 50);
+        btnControlFeel.set(centerX - 100, 10, 200, 45);
+
+        // Garage (Centered)
+        btnRepair.set(centerX - 100, 150, 200, 60);
+        float upW = 160;
+        float upH = 80;
+        float upMargin = 20;
+        btnUpgradeEngine.set(centerX - upW - upMargin, 380, upW, upH);
+        btnUpgradeSteering.set(centerX + upMargin, 380, upW, upH);
+        btnUpgradeHull.set(centerX - upW - upMargin, 280, upW, upH);
+        btnUpgradeReverse.set(centerX + upMargin, 280, upW, upH);
+
+        // Results (Centered)
+        btnRetry.set(centerX - 110, 240, 100, 45);
+        btnNext.set(centerX + 10, 240, 100, 45);
+        btnLevelSelectResults.set(centerX - 110, 185, 220, 45);
+        btnGarageResults.set(centerX - 110, 130, 220, 45);
+        btnTitleResults.set(centerX - 110, 75, 220, 45);
+
+        // Pause Menu (Centered)
+        btnPause.set(hudWidth - 100 - 20, hudHeight - 45 - 20, 100, 45);
+        float pw = 200;
+        float ph = 50;
+        btnResumePause.set(centerX - pw/2, 350, pw, ph);
+        btnRetryPause.set(centerX - pw/2, 290, pw, ph);
+        btnLevelSelectPause.set(centerX - pw/2, 230, pw, ph);
+        btnGaragePause.set(centerX - pw/2, 170, pw, ph);
+        btnTitlePause.set(centerX - pw/2, 110, pw, ph);
+
+        btnBack.set(20, hudHeight - 80, 100, 50);
+
+        // Grid buttons (Centered top)
+        for (int i = 0; i < 12; i++) {
+            float x = centerX - 375 + (i % 3) * 250;
+            float y = hudHeight - 140 - (i / 3) * 110;
+            levelButtons.get(i).set(x, y, 230, 90);
+        }
+
+        for (int i = 0; i < 4; i++) {
+            float x = centerX - 325 + (i % 2) * 350;
             float y = hudHeight - 200 - (i / 2) * 120;
-            boatButtons.add(new Rectangle(x, y, 300, 100));
+            boatButtons.get(i).set(x, y, 300, 100);
         }
     }
 

@@ -18,7 +18,7 @@ public class LevelManager {
         LevelDefinition lvl1 = new LevelDefinition(
             "Local Marina", "Wide Open Slip",
             400, 100, 90,
-            350, 450, 100, 100,
+            250, 450, 300, 120,
             500, 45f
         );
         lvl1.targetAngle = 90f;
@@ -27,15 +27,15 @@ public class LevelManager {
         lvl1.dockingHoldTime = 1.0f;
         lvl1.dockingZonePadding = 20f;
         lvl1.addDock(0, 550, 800, 50);
-        lvl1.addDock(300, 450, 50, 100);
-        lvl1.addDock(450, 450, 50, 100);
+        lvl1.addDock(200, 450, 50, 100);
+        lvl1.addDock(550, 450, 50, 100);
         levels.add(lvl1);
 
         // Level 2: Narrow Approach
         LevelDefinition lvl2 = new LevelDefinition(
             "Local Marina", "Narrow Approach",
             100, 100, 0,
-            635, 300, 100, 100,
+            550, 300, 200, 150,
             750, 50f
         );
         lvl2.targetAngle = 90f; // Parallel to docks
@@ -45,7 +45,7 @@ public class LevelManager {
         lvl2.dockingZonePadding = 20f;
         lvl2.addDock(0, 0, 800, 20);
         lvl2.addDock(0, 580, 800, 20);
-        lvl2.addDock(600, 200, 20, 300);
+        lvl2.addDock(450, 200, 50, 300);
         lvl2.addDock(750, 200, 50, 300);
         lvl2.setWind(LIGHT_FORCE, 0);
         levels.add(lvl2);
@@ -54,20 +54,17 @@ public class LevelManager {
         LevelDefinition lvl3 = new LevelDefinition(
             "Local Marina", "Fuel Dock Challenge",
             700, 500, 180,
-            50, 50, 100, 100,
+            50, 50, 200, 200,
             1000, 60f
         );
         lvl3.targetAngle = 180f;
         lvl3.dockingMaxSpeed = 45f;
         lvl3.dockingAngleTolerance = 50f;
         lvl3.dockingHoldTime = 1.2f;
-        lvl3.dockingZonePadding = 10f;
-        lvl3.addDock(0, 0, 20, 600);
-        lvl3.addDock(0, 0, 800, 20);
-        lvl3.addDock(150, 0, 20, 400);
-        lvl3.addDock(350, 200, 20, 400);
-        lvl3.addDock(550, 0, 20, 400);
-        lvl3.addCurrentZone(0, 0, 300, 300, 0, -MEDIUM_FORCE);
+        lvl3.dockingZonePadding = 20f;
+        lvl3.addDock(0, 0, 50, 600);
+        lvl3.addDock(0, 0, 800, 50);
+        lvl3.addDock(250, 0, 50, 400);
         levels.add(lvl3);
 
         // Level 4: Evening Crosswind
@@ -113,7 +110,8 @@ public class LevelManager {
         lvl6.addDock(200, 0, 40, 200);
         lvl6.addDock(200, 400, 40, 200);
         lvl6.addDock(450, 100, 40, 400);
-        lvl6.addCurrentZone(400, 0, 200, 600, 0, LIGHT_FORCE);
+        lvl6.addCurrentZone(0, 0, 800, 600, 0, LIGHT_FORCE * 0.5f); // Gentle channel-wide flow
+        lvl6.addCurrentZone(400, 0, 400, 600, 0, LIGHT_FORCE); // Stronger in middle
         levels.add(lvl6);
 
         // Level 7: Buoy Lane
@@ -171,7 +169,8 @@ public class LevelManager {
         lvl10.targetAngle = 180f;
         lvl10.addDock(50, 250, 200, 20);
         lvl10.addDock(50, 400, 200, 20);
-        lvl10.addCurrentZone(300, 0, 200, 600, 0, STRONG_FORCE);
+        lvl10.addCurrentZone(0, 0, 800, 600, 0, STRONG_FORCE * 0.4f); // Broad harbor flow
+        lvl10.addCurrentZone(250, 0, 300, 600, 0, STRONG_FORCE); // Intense slip-crossing current
         levels.add(lvl10);
 
         // Level 11: Tight Turn Basin
